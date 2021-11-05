@@ -16,7 +16,7 @@ This makes it possible to intercept a call to `ExecuteNonQuery` and report infor
 
 OpenTelemetry is an effort to standardise how we export traces, logs and metrics from our applications. This is a huge improvement since we can get rid of any vendor-specific code and just publish our data to an endpoint that understands the OpenTelemetry protocol (OTLP).  
 
-![](decorator.drawio.svg)
+<img src="decorator.drawio.svg" style="zoom:150%;" />
 
 
 
