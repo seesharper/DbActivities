@@ -25,4 +25,13 @@ namespace DbActivities
 
         public const string ExceptionStackTrace = "exception.stacktrace";
     }
+
+    public static class CustomTagNames
+    {
+        public const string RowsAffected = "db.rows_affected";
+
+        public const string RowsRead = "db.rows_read";
+
+        public const string ExceptionSource = "exception.source";
+    }
 }

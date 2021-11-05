@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-
 namespace DbActivities
 {
     public static class ExceptionExtensions
@@ -11,15 +10,12 @@ namespace DbActivities
             {
                 [OpenTelemetrySemanticNames.ExceptionType] = exception.GetType(),
                 [OpenTelemetrySemanticNames.ExceptionMessage] = exception.Message,
-                [OpenTelemetrySemanticNames.ExceptionStackTrace] = exception.ToString()
+                [OpenTelemetrySemanticNames.ExceptionStackTrace] = exception.ToString(),
+                [CustomTagNames.ExceptionSource] = exception.Source
             };
 
             activity.AddEvent(new ActivityEvent(OpenTelemetrySemanticNames.ExceptionEventName, tags: exceptionTags));
             return activity;
         }
-
-
-
-
     }
 }

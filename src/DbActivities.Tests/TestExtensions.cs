@@ -23,6 +23,7 @@ namespace DbActivities
             exceptionEvent.Tags.Should().Contain(tag => tag.Key == OpenTelemetrySemanticNames.ExceptionMessage);
             exceptionEvent.Tags.Should().Contain(tag => tag.Key == OpenTelemetrySemanticNames.ExceptionStackTrace);
             exceptionEvent.Tags.Should().Contain(tag => tag.Key == OpenTelemetrySemanticNames.ExceptionType);
+            exceptionEvent.Tags.Should().Contain(tag => tag.Key == CustomTagNames.ExceptionSource);
         }
 
         public static void ShouldHaveCallLevelTags(this Activity activity, string operation)

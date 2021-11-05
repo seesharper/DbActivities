@@ -61,7 +61,9 @@ namespace DbActivities
                 AddCallLevelTags(activity, OperationType.NonQuery);
                 try
                 {
-                    return _innerDbCommand.ExecuteNonQuery();
+                    var rowsAffected = _innerDbCommand.ExecuteNonQuery();
+                    activity?.AddTag(CustomTagNames.RowsAffected, rowsAffected);
+                    return rowsAffected;
                 }
                 catch (Exception ex)
                 {
@@ -78,7 +80,9 @@ namespace DbActivities
                 AddCallLevelTags(activity, OperationType.NonQuery);
                 try
                 {
-                    return await _innerDbCommand.ExecuteNonQueryAsync(cancellationToken);
+                    var rowsAffected = await _innerDbCommand.ExecuteNonQueryAsync(cancellationToken);
+                    activity?.AddTag(CustomTagNames.RowsAffected, rowsAffected);
+                    return rowsAffected;
                 }
                 catch (Exception ex)
                 {
