@@ -58,6 +58,7 @@ namespace DbActivities
         {
             using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteNonQuery)}"))
             {
+                _options.ConfigureDbCommand?.Invoke(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.NonQuery);
                 try
                 {
@@ -77,6 +78,7 @@ namespace DbActivities
         {
             using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteNonQueryAsync)}"))
             {
+                _options.ConfigureDbCommand?.Invoke(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.NonQuery);
                 try
                 {
@@ -96,6 +98,7 @@ namespace DbActivities
         {
             using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteScalar)}"))
             {
+                _options.ConfigureDbCommand?.Invoke(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.Scalar);
                 try
                 {
@@ -113,6 +116,7 @@ namespace DbActivities
         {
             using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteScalarAsync)}"))
             {
+                _options.ConfigureDbCommand?.Invoke(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.Scalar);
                 try
                 {
@@ -132,6 +136,7 @@ namespace DbActivities
         {
             using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteDbDataReader)}"))
             {
+                _options.ConfigureDbCommand?.Invoke(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.Reader);
                 try
                 {
@@ -149,6 +154,7 @@ namespace DbActivities
         {
             using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteDbDataReaderAsync)}"))
             {
+                _options.ConfigureDbCommand?.Invoke(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.Reader);
                 try
                 {

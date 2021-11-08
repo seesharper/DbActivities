@@ -16,10 +16,8 @@ namespace DbActivities
 
         public string System { get; }
         public string User { get; }
+
+        public Action<DbCommand> ConfigureDbCommand { get; set; }
     }
 
-
-    public record DbCommandInfo(DbCommand command, string Operation);
-
-    public record DbDataReaderInfo(DbDataReader Reader, DbCommand Command);
 }
