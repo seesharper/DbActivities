@@ -134,7 +134,7 @@ namespace DbActivities
         protected override DbParameter CreateDbParameter() => _innerDbCommand.CreateParameter();
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
-            using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteDbDataReader)}"))
+            using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteReader)}"))
             {
                 _options.ConfigureDbCommand?.Invoke(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.Reader);
@@ -152,13 +152,14 @@ namespace DbActivities
 
         protected override async Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
         {
-            using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteDbDataReaderAsync)}"))
+            using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteReaderAsync)}"))
             {
                 _options.ConfigureDbCommand?.Invoke(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.Reader);
                 try
                 {
-                    return await _innerDbCommand.ExecuteReaderAsync(behavior, cancellationToken);
+                    var reader = await _innerDbCommand.ExecuteReaderAsync(behavior, cancellationToken);
+                    return new InstrumentedDbDataReader(reader, _options);
                 }
                 catch (Exception ex)
                 {

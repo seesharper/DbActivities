@@ -60,7 +60,7 @@ namespace DbActivities
         {
             if (disposing)
             {
-                _connectionActivity.SetTag(OpenTelemetrySemanticNames.DbConnectionString, ConnectionString);
+                _connectionActivity?.SetTag(OpenTelemetrySemanticNames.DbConnectionString, ConnectionString);
                 _connectionActivity?.Dispose();
                 _innerDbConnection.Dispose();
             }

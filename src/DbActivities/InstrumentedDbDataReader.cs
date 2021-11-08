@@ -106,6 +106,7 @@ namespace DbActivities
         public override void Close()
         {
             _innerDbDataReader.Close();
+            _readerActivity.AddTag(CustomTagNames.RowsRead, _rowsRead.ToString());
             _readerActivity?.Dispose();
         }
 

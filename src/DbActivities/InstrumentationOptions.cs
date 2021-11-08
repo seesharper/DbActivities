@@ -8,7 +8,7 @@ namespace DbActivities
     {
         public InstrumentationOptions(string system)
         {
-            ActivitySource = new ActivitySource(typeof(InstrumentationOptions).Assembly.GetName().Name, "0.0.1");
+            ActivitySource = typeof(InstrumentationOptions).Assembly.CreateActivitySource();
             System = system;
         }
 

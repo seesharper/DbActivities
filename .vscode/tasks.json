@@ -4,39 +4,76 @@
         {
             "label": "build",
             "command": "dotnet",
-            "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/DbActivities.Tests/DbActivities.Tests.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
+                "/property:GenerateFullPaths=true"
             ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "type": "shell",
+            "group": "build",
+            "presentation": {
+                "reveal": "always"
+            },
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "publish",
+            "label": "rebuild",
             "command": "dotnet",
-            "type": "process",
             "args": [
-                "publish",
-                "${workspaceFolder}/src/DbActivities.Tests/DbActivities.Tests.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
+                "build",
+                "--no-incremental",
+                "/property:GenerateFullPaths=true"
             ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "type": "shell",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "clear": true
+            },
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "watch",
+            "label": "test",
             "command": "dotnet",
             "type": "process",
             "args": [
-                "watch",
-                "run",
-                "${workspaceFolder}/src/DbActivities.Tests/DbActivities.Tests.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
+                "script",
+                "${workspaceFolder}/build/build.csx",
+                "test"
             ],
-            "problemMatcher": "$msCompile"
-        }
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            }
+        },
+        {
+            "label": "test with coverage",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "script",
+                "${workspaceFolder}/build/build.csx",
+                "testcoverage"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
     ]
 }

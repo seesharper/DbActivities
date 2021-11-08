@@ -64,7 +64,7 @@ We add the following tags in compliance with this https://github.com/open-teleme
 
 
 
-`DbConnection` is also a factory for `DbCommand` meaning that we can create a new command using `DbConnection.CreateCommand()`. This will return a provider-specific `DbCommand`  and we might need to set any provider-specific properties before executing the command. The `InstrumentationOptions.ConfigureCommand<TCommand>` will be executed just before we execute any of the Execute... methods. For instance on Oracle it is pretty common to set `BindByName = true`.
+`DbConnection` is also a factory for `DbCommand` meaning that we can create a new command using `DbConnection.CreateCommand()`. This will return a provider-specific `DbCommand`  and we might need to set any provider-specific properties before executing the command. The `InstrumentationOptions.ConfigureCommand<TCommand>` will be executed just before we execute any of the Execute... methods. For instance on Oracle it is pretty common to set `BindByName = true`. 
 
 ### DbDataReader
 

@@ -104,13 +104,146 @@ namespace DbActivities.Tests
             }
         }
 
+        [Fact]
+        public async Task ShouldPopulateCallLevelTagsWhenExecutingScalar()
+        {
+            using (var connection = GetConnection())
+            {
+                connection.Execute(Sql.CreateTestTable);
+                var command = connection.CreateCommand(Sql.GetCount);
+                command.ExecuteScalar();
+                await Task.Delay(1);
+            };
 
+            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteScalar)}");
+            commandActivity.ShouldHaveCallLevelTags(OperationType.Scalar);
+        }
 
+        [Fact]
+        public async Task ShouldPopulateCallLevelTagsWhenExecutingScalarAsync()
+        {
+            using (var connection = GetConnection())
+            {
+                connection.Execute(Sql.CreateTestTable);
+                var command = (DbCommand)connection.CreateCommand(Sql.GetCount);
+                await command.ExecuteScalarAsync();
+                await Task.Delay(1);
+            };
 
+            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteScalarAsync)}");
+            commandActivity.ShouldHaveCallLevelTags(OperationType.Scalar);
+        }
 
 
         [Fact]
-        public async Task ExecuteReader()
+        public async Task ShouldAddExceptionEventWhenExecutingScalar()
+        {
+            try
+            {
+                using (var connection = GetConnection())
+                {
+                    connection.Execute(Sql.CreateTestTable);
+                    var command = connection.CreateCommand(Sql.GetCount);
+                    command.CommandText = Sql.Rubbish;
+                    command.ExecuteScalar();
+                    await Task.Delay(1);
+                };
+            }
+            catch (Exception)
+            {
+                var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteScalar)}");
+                commandActivity.ShouldHaveExceptionEvent();
+            }
+        }
+
+        [Fact]
+        public async Task ShouldAddExceptionEventWhenExecutingScalarAsync()
+        {
+            try
+            {
+                using (var connection = GetConnection())
+                {
+                    connection.Execute(Sql.CreateTestTable);
+                    var command = (DbCommand)connection.CreateCommand(Sql.GetCount);
+                    command.CommandText = Sql.Rubbish;
+                    await command.ExecuteScalarAsync();
+                    await Task.Delay(1);
+                };
+            }
+            catch (Exception)
+            {
+                var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteScalarAsync)}");
+                commandActivity.ShouldHaveExceptionEvent();
+            }
+        }
+
+        [Fact]
+        public async Task ShouldPopulateCallLevelTagsWhenExecutingReader()
+        {
+            using (var connection = GetConnection())
+            {
+                connection.Execute(Sql.CreateTestTable);
+                connection.Read<TestRecord>("SELECT Id FROM TestTable");
+                await Task.Delay(1);
+            };
+
+            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteReader)}");
+            commandActivity.ShouldHaveCallLevelTags(OperationType.Reader);
+        }
+
+        [Fact]
+        public async Task ShouldPopulateCallLevelTagsWhenExecutingReaderAsync()
+        {
+            using (var connection = GetConnection())
+            {
+                connection.Execute(Sql.CreateTestTable);
+                await connection.ReadAsync<TestRecord>("SELECT Id FROM TestTable");
+                await Task.Delay(1);
+            };
+
+            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteReaderAsync)}");
+            commandActivity.ShouldHaveCallLevelTags(OperationType.Reader);
+        }
+
+        [Fact]
+        public async Task ShouldAddExceptionEventWhenExecutingReader()
+        {
+            try
+            {
+                using (var connection = GetConnection())
+                {
+                    connection.Read<TestRecord>(Sql.Rubbish);
+                    await Task.Delay(1);
+                };
+            }
+            catch (Exception)
+            {
+                var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteReader)}");
+                commandActivity.ShouldHaveExceptionEvent();
+            }
+        }
+
+        [Fact]
+        public async Task ShouldAddExceptionEventWhenExecutingReaderAsync()
+        {
+            try
+            {
+                using (var connection = GetConnection())
+                {
+                    await connection.ReadAsync<TestRecord>(Sql.Rubbish);
+                    await Task.Delay(1);
+                };
+            }
+            catch (Exception)
+            {
+                var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteReaderAsync)}");
+                commandActivity.ShouldHaveExceptionEvent();
+            }
+        }
+
+
+        [Fact]
+        public async Task ShouldAddRowsReadWhenExecutingReader()
         {
             using (var connection = GetConnection())
             {
@@ -120,9 +253,24 @@ namespace DbActivities.Tests
                 connection.Execute("INSERT INTO TestTable(Id) VALUES(@id)", new { Id = 3 });
                 var result = connection.Read<TestRecord>("SELECT Id FROM TestTable");
                 result.Count().Should().Be(3);
-                var readerActivity = _startedActivities.Single(activity => activity.OperationName == "SQLiteDataReader");
-                readerActivity.Tags.Should().Contain(tag => tag.Key == "db.statement" && tag.Value == "SELECT Id FROM TestTable");
-                readerActivity.Tags.Should().Contain(tag => tag.Key == "db.operation" && tag.Value == "Read");
+                var readerActivity = _startedActivities.GetActivity(nameof(InstrumentedDbDataReader));
+                readerActivity.Tags.Should().Contain(tag => tag.Key == CustomTagNames.RowsRead && tag.Value == "3");
+            }
+        }
+
+        [Fact]
+        public async Task ShouldAddRowsReadWhenExecutingReaderAsync()
+        {
+            using (var connection = GetConnection())
+            {
+                connection.Execute("CREATE TABLE TestTable (Id int null)");
+                connection.Execute("INSERT INTO TestTable(Id) VALUES(@id)", new { Id = 1 });
+                connection.Execute("INSERT INTO TestTable(Id) VALUES(@id)", new { Id = 2 });
+                connection.Execute("INSERT INTO TestTable(Id) VALUES(@id)", new { Id = 3 });
+                var result = await connection.ReadAsync<TestRecord>("SELECT Id FROM TestTable");
+                result.Count().Should().Be(3);
+                var readerActivity = _startedActivities.GetActivity(nameof(InstrumentedDbDataReader));
+                readerActivity.Tags.Should().Contain(tag => tag.Key == CustomTagNames.RowsRead && tag.Value == "3");
             }
         }
 
@@ -144,5 +292,7 @@ namespace DbActivities.Tests
         public static string CreateTestTable { get => "CREATE TABLE TestTable (Id int null)"; }
 
         public static string Rubbish { get => "Rubbish"; }
+
+        public static string GetCount { get => "SELECT COUNT(*) FROM TestTable"; }
     }
 }
