@@ -11,13 +11,16 @@ using Xunit;
 
 namespace DbActivities.Tests
 {
-    public class ActivityTests
+
+    public class ActivityTests : IDisposable
     {
         private readonly List<Activity> _startedActivities = new();
 
+        private ActivityListener _activityListener;
+
         public ActivityTests()
         {
-            var activityListener = new ActivityListener
+            _activityListener = new ActivityListener
             {
                 ShouldListenTo = (source) => true,
                 Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
@@ -27,7 +30,13 @@ namespace DbActivities.Tests
                 }
             };
 
-            ActivitySource.AddActivityListener(activityListener);
+            ActivitySource.AddActivityListener(_activityListener);
+
+        }
+
+        public void Dispose()
+        {
+            _activityListener.Dispose();
         }
 
         [Fact]
@@ -267,8 +276,14 @@ namespace DbActivities.Tests
                 connection.Execute("INSERT INTO TestTable(Id) VALUES(@id)", new { Id = 1 });
                 connection.Execute("INSERT INTO TestTable(Id) VALUES(@id)", new { Id = 2 });
                 connection.Execute("INSERT INTO TestTable(Id) VALUES(@id)", new { Id = 3 });
-                var result = await connection.ReadAsync<TestRecord>("SELECT Id FROM TestTable");
-                result.Count().Should().Be(3);
+                using (var reader = (DbDataReader)await connection.ExecuteReaderAsync("SELECT Id FROM TestTable"))
+                {
+                    while (await reader.ReadAsync())
+                    {
+
+                    }
+                }
+
                 var readerActivity = _startedActivities.GetActivity(nameof(InstrumentedDbDataReader));
                 readerActivity.Tags.Should().Contain(tag => tag.Key == CustomTagNames.RowsRead && tag.Value == "3");
             }

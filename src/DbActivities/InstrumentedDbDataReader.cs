@@ -25,7 +25,7 @@ namespace DbActivities
         {
             _innerDbDataReader = dbDataReader;
             _options = options;
-            _readerActivity = options.ActivitySource.StartActivity($"{nameof(InstrumentedDbDataReader)}");
+            _readerActivity = options.ActivitySource?.StartActivity($"{nameof(InstrumentedDbDataReader)}");
         }
 
         public DbDataReader InnerDbDataReader { get => _innerDbDataReader; }
@@ -44,9 +44,6 @@ namespace DbActivities
 
         public override int RecordsAffected => _innerDbDataReader.RecordsAffected;
 
-        public override int VisibleFieldCount => base.VisibleFieldCount;
-
-        public override bool Equals(object obj) => _innerDbDataReader.Equals(obj);
         public override bool GetBoolean(int ordinal) => _innerDbDataReader.GetBoolean(ordinal);
         public override byte GetByte(int ordinal) => _innerDbDataReader.GetByte(ordinal);
         public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length) => _innerDbDataReader.GetBytes(ordinal, dataOffset, buffer, bufferOffset, length);
@@ -69,9 +66,7 @@ namespace DbActivities
         public override long GetInt64(int ordinal) => _innerDbDataReader.GetInt64(ordinal);
         public override string GetName(int ordinal) => _innerDbDataReader.GetName(ordinal);
         public override int GetOrdinal(string name) => _innerDbDataReader.GetOrdinal(name);
-        public override Type GetProviderSpecificFieldType(int ordinal) => _innerDbDataReader.GetProviderSpecificFieldType(ordinal);
-        public override object GetProviderSpecificValue(int ordinal) => _innerDbDataReader.GetProviderSpecificValue(ordinal);
-        public override int GetProviderSpecificValues(object[] values) => _innerDbDataReader.GetProviderSpecificValues(values);
+
         public override DataTable GetSchemaTable() => _innerDbDataReader.GetSchemaTable();
         public override Task<DataTable> GetSchemaTableAsync(CancellationToken cancellationToken = default) => _innerDbDataReader.GetSchemaTableAsync(cancellationToken);
         public override Stream GetStream(int ordinal) => _innerDbDataReader.GetStream(ordinal);
@@ -100,13 +95,13 @@ namespace DbActivities
             {
                 _rowsRead++;
             }
-            return await _innerDbDataReader.ReadAsync(cancellationToken);
+            return hasMoreRows;
         }
 
         public override void Close()
         {
             _innerDbDataReader.Close();
-            _readerActivity.AddTag(CustomTagNames.RowsRead, _rowsRead.ToString());
+            _readerActivity?.AddTag(CustomTagNames.RowsRead, _rowsRead.ToString());
             _readerActivity?.Dispose();
         }
 
