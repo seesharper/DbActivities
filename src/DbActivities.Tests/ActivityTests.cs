@@ -270,7 +270,7 @@ namespace DbActivities.Tests
 
 
         [Fact]
-        public async Task ShouldAddRowsReadWhenExecutingReader()
+        public void ShouldAddRowsReadWhenExecutingReader()
         {
             using (var connection = GetConnection())
             {

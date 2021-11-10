@@ -281,7 +281,7 @@ namespace DbActivities.Tests
         }
 
         [Fact]
-        public async Task ShouldCallGetSchemaTableAsync()
+        public void ShouldCallGetSchemaTableAsync()
         {
             var mock = new Mock<DbDataReader>();
             mock.Setup(m => m.GetSchemaTableAsync(default)).ReturnsAsync(new DataTable());
