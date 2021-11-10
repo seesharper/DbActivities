@@ -1,8 +1,6 @@
 using System;
-using System.Collections;
 using System.Data;
 using System.Data.Common;
-using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
@@ -376,6 +374,6 @@ namespace DbActivities.Tests
         }
 
         private static InstrumentedDbDataReader CreateInstrumentedDbDataReader(DbDataReader reader)
-            => new InstrumentedDbDataReader(reader, new InstrumentationOptions("sqlite") { ActivitySource = null });
+            => new InstrumentedDbDataReader(reader, new InstrumentationOptions("sqlite").ConfigureActivityStarter((source, name) => null));
     }
 }

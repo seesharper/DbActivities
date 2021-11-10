@@ -25,7 +25,7 @@ namespace DbActivities
         {
             _innerDbDataReader = dbDataReader;
             _options = options;
-            _readerActivity = options.ActivitySource?.StartActivity($"{nameof(InstrumentedDbDataReader)}");
+            _readerActivity = options.StartActivity($"{nameof(InstrumentedDbDataReader)}");
         }
 
         public DbDataReader InnerDbDataReader { get => _innerDbDataReader; }

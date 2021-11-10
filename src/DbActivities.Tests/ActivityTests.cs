@@ -40,6 +40,24 @@ namespace DbActivities.Tests
         }
 
         [Fact]
+        public void ShouldConfigureDbCommand()
+        {
+            bool wasConfigured = false;
+            var options = new InstrumentationOptions("sqlite");
+            options.ConfigureDbCommand<SQLiteCommand>(command =>
+            {
+                wasConfigured = true;
+            });
+
+            using (var connection = GetConnection(options))
+            {
+                connection.Execute(Sql.CreateTestTable);
+            }
+
+            wasConfigured.Should().BeTrue();
+        }
+
+        [Fact]
         public async Task ShouldPopulateConnectionLevelTags()
         {
             using (GetConnection())
@@ -289,11 +307,147 @@ namespace DbActivities.Tests
             }
         }
 
-        private DbConnection GetConnection()
+        [Fact]
+        public void ShouldCreateTransactionWithConnectionActivityAsParent()
+        {
+            using (var connection = GetConnection())
+            {
+                using (var transaction = connection.BeginTransaction())
+                {
+                    connection.Execute("CREATE TABLE TestTable (Id int null)");
+                }
+            }
+
+            var connectionActivity = _startedActivities.GetActivity(nameof(InstrumentedDbConnection));
+            var transactionActivity = _startedActivities.GetActivity(nameof(InstrumentedDbTransaction));
+            transactionActivity.Parent.Should().Be(connectionActivity);
+        }
+
+        [Fact]
+        public void ShouldAddCommitEventWhenTransactionIsCommitted()
+        {
+            using (var connection = GetConnection())
+            {
+                using (var transaction = connection.BeginTransaction())
+                {
+                    connection.Execute("CREATE TABLE TestTable (Id int null)");
+                    transaction.Commit();
+                }
+            }
+
+            var connectionActivity = _startedActivities.GetActivity(nameof(InstrumentedDbConnection));
+            var transactionActivity = _startedActivities.GetActivity(nameof(InstrumentedDbTransaction));
+            transactionActivity.Parent.Should().Be(connectionActivity);
+        }
+
+        [Fact]
+        public void ShouldAddCommitEventWhenTransactionIsRolledBack()
+        {
+            using (var connection = GetConnection())
+            {
+                using (var transaction = connection.BeginTransaction())
+                {
+                    connection.Execute("CREATE TABLE TestTable (Id int null)");
+                    transaction.Rollback();
+                }
+            }
+
+            var connectionActivity = _startedActivities.GetActivity(nameof(InstrumentedDbConnection));
+            var transactionActivity = _startedActivities.GetActivity(nameof(InstrumentedDbTransaction));
+            transactionActivity.Parent.Should().Be(connectionActivity);
+        }
+
+        [Fact]
+        public void ShouldHandleTransactionWhenActivityIsNull()
+        {
+            var options = new InstrumentationOptions();
+            options.ConfigureActivityStarter((source, kind) => null);
+
+            using (var connection = GetConnection(options))
+            {
+                using (var transaction = connection.BeginTransaction())
+                {
+                    connection.Execute("CREATE TABLE TestTable (Id int null)");
+                    transaction.Rollback();
+                }
+
+                using (var transaction = connection.BeginTransaction())
+                {
+                    connection.Execute("CREATE TABLE TestTable (Id int null)");
+                    transaction.Commit();
+                }
+            }
+        }
+
+        [Fact]
+        public void ShouldSetAndGetTransactionFromDbCommand()
+        {
+            using (var connection = GetConnection())
+            {
+                using (var transaction = connection.BeginTransaction())
+                {
+                    var command = connection.CreateCommand();
+                    command.Transaction = transaction;
+                    command.Transaction.Should().BeOfType<InstrumentedDbTransaction>();
+                    command.Transaction = ((InstrumentedDbTransaction)transaction).InnerDbTransaction;
+                    command.Transaction.Should().BeOfType<SQLiteTransaction>();
+                }
+            }
+        }
+
+        [Fact]
+        public async Task ShouldHandleExecuteDbDataReaderAsyncWhenActivityIsNull()
+        {
+            using (var connection = GetConnection(new InstrumentationOptions().ConfigureActivityStarter((source, kind) => null)))
+            {
+                await connection.ExecuteAsync(Sql.CreateTestTable);
+                await connection.ReadAsync<TestRecord>("SELECT Id FROM TestTable");
+            }
+            _startedActivities.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task ShouldHandleExceptionWhenActivityIsNullForReadAsync()
+        {
+            try
+            {
+                using (var connection = GetConnection(new InstrumentationOptions().ConfigureActivityStarter((source, kind) => null)))
+                {
+                    await connection.ExecuteAsync(Sql.CreateTestTable);
+                    await connection.ReadAsync<TestRecord>(Sql.Rubbish);
+                }
+            }
+            catch (System.Exception)
+            {
+                _startedActivities.Should().BeEmpty();
+            }
+        }
+
+        [Fact]
+        public async Task ShouldHandleExceptionWhenActivityIsNullForReadScalarAsync()
+        {
+            try
+            {
+                using (var connection = GetConnection(new InstrumentationOptions().ConfigureActivityStarter((source, kind) => null)))
+                {
+                    await connection.ExecuteAsync(Sql.CreateTestTable);
+                    var command = connection.CreateCommand();
+                    command.CommandText = Sql.Rubbish;
+                    await command.ExecuteScalarAsync();
+                }
+            }
+            catch (System.Exception)
+            {
+                _startedActivities.Should().BeEmpty();
+            }
+        }
+
+
+        private DbConnection GetConnection(InstrumentationOptions options = null)
         {
             var connection = new SQLiteConnection("Data Source= :memory:; Cache = Shared");
             connection.Open();
-            return new InstrumentedDbConnection(connection, new InstrumentationOptions("sqlite"));
+            return new InstrumentedDbConnection(connection, options ?? new InstrumentationOptions("sqlite"));
         }
 
 

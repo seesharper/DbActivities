@@ -22,6 +22,7 @@ namespace DbActivities
             _dbConnection = dbConnection;
             _innerDbCommand = dbCommand;
             _options = options;
+            dbCommand.Connection = dbConnection is InstrumentedDbConnection instrumentedDbConnection ? instrumentedDbConnection.InnerDbConnection : dbConnection;
         }
 
         public DbCommand InnerDbCommand { get => _innerDbCommand; }
@@ -37,7 +38,7 @@ namespace DbActivities
             set
             {
                 _dbConnection = value;
-                _innerDbCommand.Connection = value is InstrumentedDbConnection instrumentedDbConnection ? instrumentedDbConnection.InnerDbConnection : value; ;
+                _innerDbCommand.Connection = value is InstrumentedDbConnection instrumentedDbConnection ? instrumentedDbConnection.InnerDbConnection : value;
             }
         }
 
@@ -58,7 +59,7 @@ namespace DbActivities
         {
             using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteNonQuery)}"))
             {
-                _options.ConfigureDbCommand?.Invoke(_innerDbCommand);
+                _options.ConfigureDbCommandInternal(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.NonQuery);
                 try
                 {
@@ -68,7 +69,7 @@ namespace DbActivities
                 }
                 catch (Exception ex)
                 {
-                    activity.AddExceptionEvent(ex);
+                    activity?.AddExceptionEvent(ex);
                     throw;
                 }
             }
@@ -76,9 +77,9 @@ namespace DbActivities
 
         public override async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
         {
-            using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteNonQueryAsync)}"))
+            using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteNonQueryAsync)}"))
             {
-                _options.ConfigureDbCommand?.Invoke(_innerDbCommand);
+                _options.ConfigureDbCommandInternal(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.NonQuery);
                 try
                 {
@@ -96,9 +97,9 @@ namespace DbActivities
 
         public override object ExecuteScalar()
         {
-            using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteScalar)}"))
+            using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteScalar)}"))
             {
-                _options.ConfigureDbCommand?.Invoke(_innerDbCommand);
+                _options.ConfigureDbCommandInternal(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.Scalar);
                 try
                 {
@@ -106,7 +107,7 @@ namespace DbActivities
                 }
                 catch (Exception ex)
                 {
-                    activity.AddExceptionEvent(ex);
+                    activity?.AddExceptionEvent(ex);
                     throw;
                 }
             }
@@ -114,9 +115,9 @@ namespace DbActivities
 
         public override async Task<object> ExecuteScalarAsync(CancellationToken cancellationToken)
         {
-            using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteScalarAsync)}"))
+            using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteScalarAsync)}"))
             {
-                _options.ConfigureDbCommand?.Invoke(_innerDbCommand);
+                _options.ConfigureDbCommandInternal(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.Scalar);
                 try
                 {
@@ -124,7 +125,7 @@ namespace DbActivities
                 }
                 catch (Exception ex)
                 {
-                    activity.AddExceptionEvent(ex);
+                    activity?.AddExceptionEvent(ex);
                     throw;
                 }
             }
@@ -134,9 +135,9 @@ namespace DbActivities
         protected override DbParameter CreateDbParameter() => _innerDbCommand.CreateParameter();
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
-            using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteReader)}"))
+            using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteReader)}"))
             {
-                _options.ConfigureDbCommand?.Invoke(_innerDbCommand);
+                _options.ConfigureDbCommandInternal(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.Reader);
                 try
                 {
@@ -144,7 +145,7 @@ namespace DbActivities
                 }
                 catch (Exception ex)
                 {
-                    activity.AddExceptionEvent(ex);
+                    activity?.AddExceptionEvent(ex);
                     throw;
                 }
             }
@@ -152,9 +153,9 @@ namespace DbActivities
 
         protected override async Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
         {
-            using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteReaderAsync)}"))
+            using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteReaderAsync)}"))
             {
-                _options.ConfigureDbCommand?.Invoke(_innerDbCommand);
+                _options.ConfigureDbCommandInternal(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.Reader);
                 try
                 {
@@ -163,7 +164,7 @@ namespace DbActivities
                 }
                 catch (Exception ex)
                 {
-                    activity.AddExceptionEvent(ex);
+                    activity?.AddExceptionEvent(ex);
                     throw;
                 }
             }
@@ -171,9 +172,9 @@ namespace DbActivities
 
         private void AddCallLevelTags(Activity activity, string operation)
         {
-            activity.AddTag(OpenTelemetrySemanticNames.DbStatement, CommandText);
-            activity.AddTag(OpenTelemetrySemanticNames.DbOperation, operation);
-            activity.AddTag(OpenTelemetrySemanticNames.DbUser, _options.User);
+            activity?.AddTag(OpenTelemetrySemanticNames.DbStatement, CommandText);
+            activity?.AddTag(OpenTelemetrySemanticNames.DbOperation, operation);
+            activity?.AddTag(OpenTelemetrySemanticNames.DbUser, _options.User);
         }
 
     }

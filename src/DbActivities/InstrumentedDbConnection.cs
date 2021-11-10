@@ -16,9 +16,9 @@ namespace DbActivities
         {
             _options = options;
             _innerDbConnection = dbConnection;
-            _connectionActivity = options.ActivitySource.StartActivity($"{nameof(InstrumentedDbConnection)}");
-            _connectionActivity.AddTag(OpenTelemetrySemanticNames.DbSystem, _options.System);
-            _connectionActivity.AddTag(OpenTelemetrySemanticNames.DbUser, _options.User);
+            _connectionActivity = options.StartActivity($"{nameof(InstrumentedDbConnection)}");
+            _connectionActivity?.AddTag(OpenTelemetrySemanticNames.DbSystem, _options.System);
+            _connectionActivity?.AddTag(OpenTelemetrySemanticNames.DbUser, _options.User);
         }
 
         public override string ConnectionString { get => _innerDbConnection.ConnectionString; set => _innerDbConnection.ConnectionString = value; }
@@ -33,7 +33,7 @@ namespace DbActivities
 
         public override string DataSource => _innerDbConnection.DataSource;
 
-        public override string ServerVersion => _innerDbConnection.DataSource;
+        public override string ServerVersion => _innerDbConnection.ServerVersion;
 
         protected override DbTransaction BeginDbTransaction(IsolationLevel il)
         {

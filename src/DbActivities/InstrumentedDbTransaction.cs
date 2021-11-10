@@ -13,7 +13,8 @@ namespace DbActivities
         public InstrumentedDbTransaction(DbTransaction dbTransaction, InstrumentedDbConnection dbConnection, InstrumentationOptions options)
         {
             _innerDbTransaction = dbTransaction;
-            //_transactionActivity = options.TransactionActivityStarter(dbTransaction);
+            _transactionActivity = options.StartActivity(nameof(InstrumentedDbTransaction));
+            _dbConnection = dbConnection;
         }
 
         protected override DbConnection DbConnection => _dbConnection;
