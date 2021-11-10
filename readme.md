@@ -104,11 +104,10 @@ When an exception occurs, OpenTelemetry also specifies that this should be an ev
 ### Example
 
 ```c#
-var sqliteConnection = new SqliteConnection();
+var sqliteConnection = new SQLiteConnection();
 // Set things like the ConnectionString and stuff here
-sql
 var instrumentationOptions = new InstrumentationOptions(source:"sqlite");
-var dbConnection = new InstrumentedDbConnection()
+var dbConnection = new InstrumentedDbConnection(sqliteConnection, options);
 ```
 
 
