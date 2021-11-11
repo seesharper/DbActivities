@@ -5,7 +5,7 @@ using System.Reflection;
 
 namespace DbActivities
 {
-    public static class AssemblyExtensions
+    internal static class AssemblyExtensions
     {
         public static string GetInformationalVersion(this Assembly assembly)
             => assembly.GetCustomAttributes<AssemblyInformationalVersionAttribute>().Single().InformationalVersion;

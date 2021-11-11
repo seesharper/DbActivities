@@ -8,8 +8,7 @@ namespace DbActivities
 {
     public class InstrumentationOptions
     {
-        private readonly List<Action<DbCommand>> commandActions = new List<Action<DbCommand>>();
-
+        private readonly List<Action<DbCommand>> _commandActions = new();
 
         public InstrumentationOptions(string system = "other_sql")
         {
@@ -27,7 +26,7 @@ namespace DbActivities
 
         internal void ConfigureDbCommandInternal(DbCommand dbCommand)
         {
-            foreach (var action in commandActions)
+            foreach (var action in _commandActions)
             {
                 action(dbCommand);
             }
@@ -44,7 +43,7 @@ namespace DbActivities
             {
                 configureCommand((TCommand)c);
             };
-            commandActions.Add(commandAction);
+            _commandActions.Add(commandAction);
 
             return this;
         }

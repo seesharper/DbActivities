@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics;
 namespace DbActivities
 {
-    public static class ExceptionExtensions
+    internal static class ExceptionExtensions
     {
         public static Activity AddExceptionEvent(this Activity activity, Exception exception)
         {
