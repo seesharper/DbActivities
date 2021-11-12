@@ -90,7 +90,7 @@ namespace DbActivities
                 }
                 catch (Exception ex)
                 {
-                    activity.AddExceptionEvent(ex);
+                    activity?.AddExceptionEvent(ex);
                     throw;
                 }
             }

@@ -424,6 +424,23 @@ namespace DbActivities.Tests
         }
 
         [Fact]
+        public async Task ShouldHandleExceptionWhenActivityIsNullForExecuteNonQueryAsync()
+        {
+            try
+            {
+                using (var connection = GetConnection(new InstrumentationOptions().ConfigureActivityStarter((source, kind) => null)))
+                {
+                    await connection.ExecuteAsync(Sql.CreateTestTable);
+                    await connection.ExecuteAsync(Sql.Rubbish);
+                }
+            }
+            catch (System.Exception)
+            {
+                _startedActivities.Should().BeEmpty();
+            }
+        }
+
+        [Fact]
         public async Task ShouldHandleExceptionWhenActivityIsNullForReadScalarAsync()
         {
             try
