@@ -43,6 +43,19 @@ namespace DbActivities.Tests
         }
 
         [Fact]
+        public void ShouldGetAndSetCommandText()
+        {
+            var mock = new Mock<DbCommand>();
+            mock.SetupAllProperties();
+            var instrumentinstrumentedDbCommand = CreateInstrumentedDbCommand(mock.Object);
+            instrumentinstrumentedDbCommand.CommandText = "MyCommandText";
+            instrumentinstrumentedDbCommand.CommandText.Should().Be("MyCommandText");
+            mock.VerifySet(m => m.CommandText = "MyCommandText", Times.Once);
+            mock.VerifyGet(m => m.CommandText, Times.Once);
+        }
+
+
+        [Fact]
         public void ShouldGetAndSetDesignTimeVisible()
         {
             var mock = new Mock<DbCommand>();

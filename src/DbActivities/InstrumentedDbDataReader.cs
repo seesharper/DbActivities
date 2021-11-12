@@ -15,8 +15,6 @@ namespace DbActivities
         private readonly DbDataReader _innerDbDataReader;
         private readonly InstrumentationOptions _options;
 
-        private readonly DbCommand _command;
-
         private readonly Activity _readerActivity;
 
         private int _rowsRead = 0;

@@ -442,6 +442,18 @@ namespace DbActivities.Tests
             }
         }
 
+        [Fact]
+        public void ShouldCallFormatCommandText()
+        {
+            var options = new InstrumentationOptions().FormatCommandText<SQLiteCommand>(command => "MyCommandText");
+            using (var connection = GetConnection(options))
+            {
+                connection.Execute("CREATE TABLE TestTable (Id int null)");
+            }
+            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteNonQuery)}");
+            commandActivity.Tags.Should().Contain(tag => tag.Key == "db.statement" && tag.Value == "MyCommandText");
+        }
+
 
         private DbConnection GetConnection(InstrumentationOptions options = null)
         {

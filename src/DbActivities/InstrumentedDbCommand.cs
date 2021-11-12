@@ -2,9 +2,10 @@ using System;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
 namespace DbActivities
 {
     public class InstrumentedDbCommand : DbCommand
@@ -172,7 +173,7 @@ namespace DbActivities
 
         private void AddCallLevelTags(Activity activity, string operation)
         {
-            activity?.AddTag(OpenTelemetrySemanticNames.DbStatement, CommandText);
+            activity?.AddTag(OpenTelemetrySemanticNames.DbStatement, _options.FormatCommandTextInternal(_innerDbCommand));
             activity?.AddTag(OpenTelemetrySemanticNames.DbOperation, operation);
             activity?.AddTag(OpenTelemetrySemanticNames.DbUser, _options.User);
         }
