@@ -118,8 +118,16 @@ var dbConnection = new InstrumentedDbConnection(sqliteConnection, options);
 ```
 
 
+### Enriching Activities
 
+If we should want to "enrich" our activities with additional data such as tags, events or baggage, we can use `InstrumentationOptions.ConfigureActivity` method.
 
+```c#
+var options = new InstrumentationOptions()
+  .ConfigureActivity(activity => activity.AddTag("customTag", "customTagValue"));
+```
+
+`DbActivites` will invoke this just before the activity is ended.
 
 
 
