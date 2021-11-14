@@ -9,6 +9,7 @@
     <RepositoryUrl>https://github.com/seesharper/DbActivities</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>OpenTelemetry dotnet tracing distributed-tracing</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Version>0.0.3</Version>
   </PropertyGroup>
 
@@ -17,4 +18,6 @@
       <_Parameter1>DbActivities.Tests</_Parameter1>
     </AssemblyAttribute>
   </ItemGroup>
+
+
 </Project>
