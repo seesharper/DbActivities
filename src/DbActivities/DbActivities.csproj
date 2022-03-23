@@ -10,7 +10,6 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>OpenTelemetry dotnet tracing distributed-tracing</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Version>0.0.3</Version>
   </PropertyGroup>
 
   <ItemGroup>
