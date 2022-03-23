@@ -2,12 +2,14 @@ using System;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 namespace DbActivities
 {
+    /// <summary>
+    /// Wraps an existing <see cref="DbCommand"/> and adds
+    /// instrumentation using the <see cref="Activity"/> class.
+    /// </summary>
     public class InstrumentedDbCommand : DbCommand
     {
         private readonly DbCommand _innerDbCommand;
@@ -18,6 +20,12 @@ namespace DbActivities
 
         private readonly InstrumentationOptions _options;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="InstrumentedDbCommand"/> class.
+        /// </summary>
+        /// <param name="dbCommand">The underlying <see cref="DbCommand"/>.</param>
+        /// <param name="dbConnection">The <see cref="DbConnection"/> to be associated with this command.</param>
+        /// <param name="options">The <see cref="InstrumentationOptions"/> to be used when instrumenting.</param>
         public InstrumentedDbCommand(DbCommand dbCommand, DbConnection dbConnection, InstrumentationOptions options)
         {
             _dbConnection = dbConnection;
@@ -26,13 +34,27 @@ namespace DbActivities
             dbCommand.Connection = dbConnection is InstrumentedDbConnection instrumentedDbConnection ? instrumentedDbConnection.InnerDbConnection : dbConnection;
         }
 
+        /// <summary>
+        /// Get the inner <see cref="DbCommand"/> being instrumented.
+        /// </summary>
         public DbCommand InnerDbCommand { get => _innerDbCommand; }
 
+        /// <inheritdoc/>
         public override string CommandText { get => _innerDbCommand.CommandText; set => _innerDbCommand.CommandText = value; }
+
+        /// <inheritdoc/>
         public override int CommandTimeout { get => _innerDbCommand.CommandTimeout; set => _innerDbCommand.CommandTimeout = value; }
+
+        /// <inheritdoc/>
         public override CommandType CommandType { get => _innerDbCommand.CommandType; set => _innerDbCommand.CommandType = value; }
+
+        /// <inheritdoc/>
         public override bool DesignTimeVisible { get => _innerDbCommand.DesignTimeVisible; set => _innerDbCommand.DesignTimeVisible = value; }
+
+        /// <inheritdoc/>
         public override UpdateRowSource UpdatedRowSource { get => _innerDbCommand.UpdatedRowSource; set => _innerDbCommand.UpdatedRowSource = value; }
+
+        /// <inheritdoc/>
         protected override DbConnection DbConnection
         {
             get => _dbConnection;
@@ -43,8 +65,10 @@ namespace DbActivities
             }
         }
 
+        /// <inheritdoc/>
         protected override DbParameterCollection DbParameterCollection => _innerDbCommand.Parameters;
 
+        /// <inheritdoc/>
         protected override DbTransaction DbTransaction
         {
             get => _dbTransaction;
@@ -55,7 +79,10 @@ namespace DbActivities
             }
         }
 
+        /// <inheritdoc/>
         public override void Cancel() => _innerDbCommand.Cancel();
+
+        /// <inheritdoc/>
         public override int ExecuteNonQuery()
         {
             using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteNonQuery)}"))
@@ -73,9 +100,14 @@ namespace DbActivities
                     activity?.AddExceptionEvent(ex);
                     throw;
                 }
+                finally
+                {
+                    _options.ConfigureActivityInternal(activity);
+                }
             }
         }
 
+        /// <inheritdoc/>
         public override async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
         {
             using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteNonQueryAsync)}"))
@@ -93,9 +125,14 @@ namespace DbActivities
                     activity?.AddExceptionEvent(ex);
                     throw;
                 }
+                finally
+                {
+                    _options.ConfigureActivityInternal(activity);
+                }
             }
         }
 
+        /// <inheritdoc/>
         public override object ExecuteScalar()
         {
             using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteScalar)}"))
@@ -111,9 +148,14 @@ namespace DbActivities
                     activity?.AddExceptionEvent(ex);
                     throw;
                 }
+                finally
+                {
+                    _options.ConfigureActivityInternal(activity);
+                }
             }
         }
 
+        /// <inheritdoc/>
         public override async Task<object> ExecuteScalarAsync(CancellationToken cancellationToken)
         {
             using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteScalarAsync)}"))
@@ -129,11 +171,20 @@ namespace DbActivities
                     activity?.AddExceptionEvent(ex);
                     throw;
                 }
+                finally
+                {
+                    _options.ConfigureActivityInternal(activity);
+                }
             }
         }
 
+        /// <inheritdoc/>
         public override void Prepare() => _innerDbCommand.Prepare();
+
+        /// <inheritdoc/>
         protected override DbParameter CreateDbParameter() => _innerDbCommand.CreateParameter();
+
+        /// <inheritdoc/>
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
             using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteReader)}"))
@@ -149,9 +200,14 @@ namespace DbActivities
                     activity?.AddExceptionEvent(ex);
                     throw;
                 }
+                finally
+                {
+                    _options.ConfigureActivityInternal(activity);
+                }
             }
         }
 
+        /// <inheritdoc/>
         protected override async Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
         {
             using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteReaderAsync)}"))
@@ -168,6 +224,10 @@ namespace DbActivities
                     activity?.AddExceptionEvent(ex);
                     throw;
                 }
+                finally
+                {
+                    _options.ConfigureActivityInternal(activity);
+                }
             }
         }
 
@@ -177,6 +237,5 @@ namespace DbActivities
             activity?.AddTag(OpenTelemetrySemanticNames.DbOperation, operation);
             activity?.AddTag(OpenTelemetrySemanticNames.DbUser, _options.User);
         }
-
     }
 }

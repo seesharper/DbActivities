@@ -103,17 +103,37 @@
   },
   "public async method": {
     "prefix": "pas",
-    "body": ["public async Task ${1:Method}()", "{", "}"],
+    "body": [
+      "public async Task ${1:Method}()",
+      "{",
+      "}"
+    ],
     "description": "public async method"
   },
   "test method": {
     "prefix": "tm",
-    "body": ["[Fact]", "public async Task ${1:Method}()", "{", "}"],
+    "body": [
+      "[Fact]",
+      "public async Task ${1:Method}()",
+      "{",
+      "}"
+    ],
     "description": "test method"
   },
   "public method": {
     "prefix": "pm",
-    "body": ["public void ${1:Method}()", "{", "}"],
+    "body": [
+      "public void ${1:Method}()",
+      "{",
+      "}"
+    ],
+    "description": "public void method"
+  },
+  "inheritdoc method": {
+    "prefix": "idoc",
+    "body": [
+      "/// <inheritdoc/>",
+    ],
     "description": "public void method"
   }
 }

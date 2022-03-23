@@ -146,18 +146,11 @@ namespace DbActivities.Tests
             command.Connection.Should().BeSameAs(connectionMock.Object);
         }
 
-        // [Fact]
-        // public void ShouldGetTransactionAsInstrumentedDbTransaction()
-        // {
-        //     var options = new InstrumentationOptions("sqlite");
-        //     var commandMock = new Mock<DbCommand>();
-        //     commandMock.SetupAllProperties();
-        //     var transactionMock = new Mock<DbTransaction>();
-        //     var instrumentedDbConnection = new InstrumentedDbConnection(transactionMock.Object, options);
-        //     var command = new InstrumentedDbCommand(commandMock.Object, instrumentedDbConnection, options);
-        //     command.Connection.Should().BeSameAs(instrumentedDbConnection);
-        //     ((InstrumentedDbConnection)command.Connection).InnerDbConnection.Should().BeSameAs(transactionMock.Object);
-        // }
+        public void ShouldConfigureActivity()
+        {
+            var options = new InstrumentationOptions("sqlite");
+        }
+
 
 
         private static InstrumentedDbCommand CreateInstrumentedDbCommand(DbCommand reader)
