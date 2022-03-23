@@ -13,6 +13,8 @@ namespace DbActivities
     {
         private readonly List<Action<DbCommand>> _commandActions = new();
 
+        private readonly List<Action<Activity>> _activityActions = new();
+
         private Func<DbCommand, string> _formatCommantText;
 
         /// <summary>
@@ -52,6 +54,14 @@ namespace DbActivities
             }
         }
 
+        internal void ConfigureActivityInternal(Activity activity)
+        {
+            foreach (var action in _activityActions)
+            {
+                action(activity);
+            }
+        }
+
         internal string FormatCommandTextInternal(DbCommand dbCommand)
         {
             return _formatCommantText(dbCommand);
@@ -87,6 +97,13 @@ namespace DbActivities
             _commandActions.Add(commandAction);
             return this;
         }
+
+        public InstrumentationOptions ConfigureActivity(Action<Activity> configureActivity)
+        {
+            _activityActions.Add(configureActivity);
+            return this;
+        }
+
 
         /// <summary>
         /// Allows custom configuration of starting activities.

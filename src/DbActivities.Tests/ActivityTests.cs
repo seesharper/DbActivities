@@ -471,6 +471,32 @@ namespace DbActivities.Tests
             commandActivity.Tags.Should().Contain(tag => tag.Key == "db.statement" && tag.Value == "MyCommandText");
         }
 
+        [Fact]
+        public void ShouldCallConfigureActivity()
+        {
+            var options = new InstrumentationOptions().ConfigureActivity(a => a.DisplayName = "MyDisplayName");
+            options.User = "test";
+            using (var connection = GetConnection(options))
+            {
+                connection.Execute("CREATE TABLE TestTable (Id int null)");
+            }
+            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteNonQuery)}");
+            commandActivity.DisplayName.Should().Be("MyDisplayName");
+        }
+
+        [Fact]
+        public void ShouldSetUserTag()
+        {
+            var options = new InstrumentationOptions();
+            options.User = "TestUser";
+            using (var connection = GetConnection(options))
+            {
+                connection.Execute("CREATE TABLE TestTable (Id int null)");
+            }
+            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteNonQuery)}");
+            commandActivity.Tags.Should().Contain(tag => tag.Key == "db.user" && tag.Value == "TestUser");
+        }
+
 
         private DbConnection GetConnection(InstrumentationOptions options = null)
         {

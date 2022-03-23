@@ -100,6 +100,10 @@ namespace DbActivities
                     activity?.AddExceptionEvent(ex);
                     throw;
                 }
+                finally
+                {
+                    _options.ConfigureActivityInternal(activity);
+                }
             }
         }
 
@@ -121,6 +125,10 @@ namespace DbActivities
                     activity?.AddExceptionEvent(ex);
                     throw;
                 }
+                finally
+                {
+                    _options.ConfigureActivityInternal(activity);
+                }
             }
         }
 
@@ -140,6 +148,10 @@ namespace DbActivities
                     activity?.AddExceptionEvent(ex);
                     throw;
                 }
+                finally
+                {
+                    _options.ConfigureActivityInternal(activity);
+                }
             }
         }
 
@@ -158,6 +170,10 @@ namespace DbActivities
                 {
                     activity?.AddExceptionEvent(ex);
                     throw;
+                }
+                finally
+                {
+                    _options.ConfigureActivityInternal(activity);
                 }
             }
         }
@@ -184,6 +200,10 @@ namespace DbActivities
                     activity?.AddExceptionEvent(ex);
                     throw;
                 }
+                finally
+                {
+                    _options.ConfigureActivityInternal(activity);
+                }
             }
         }
 
@@ -203,6 +223,10 @@ namespace DbActivities
                 {
                     activity?.AddExceptionEvent(ex);
                     throw;
+                }
+                finally
+                {
+                    _options.ConfigureActivityInternal(activity);
                 }
             }
         }
