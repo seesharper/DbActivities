@@ -11,9 +11,15 @@ namespace DbActivities
     /// </summary>
     public class InstrumentationOptions
     {
-        private readonly List<Action<DbCommand>> _commandActions = new();
-
         private readonly List<Action<Activity>> _activityActions = new();
+
+        private readonly List<Action<Activity, DbCommand>> _configureCommandActions = new();
+
+        private readonly List<Action<Activity, DbDataReader>> _configureDataReaderActions = new();
+
+        private readonly List<Action<Activity, DbConnection>> _configureConnectionActions = new();
+
+        private readonly List<Action<Activity, DbTransaction>> _configureTransactionActions = new();
 
         private Func<DbCommand, string> _formatCommantText;
 
@@ -46,11 +52,35 @@ namespace DbActivities
         /// </summary>
         public string User { get; set; }
 
-        internal void ConfigureDbCommandInternal(DbCommand dbCommand)
+        internal void ConfigureCommandActivityInternal(Activity activity, DbCommand dbCommand)
         {
-            foreach (var action in _commandActions)
+            foreach (var action in _configureCommandActions)
             {
-                action(dbCommand);
+                action(activity, dbCommand);
+            }
+        }
+
+        internal void ConfigureDataReaderActivityInternal(Activity activity, DbDataReader dbDataReader)
+        {
+            foreach (var action in _configureDataReaderActions)
+            {
+                action(activity, dbDataReader);
+            }
+        }
+
+        internal void ConfigureTransactionActivityInternal(Activity activity, DbTransaction dbTransaction)
+        {
+            foreach (var action in _configureTransactionActions)
+            {
+                action(activity, dbTransaction);
+            }
+        }
+
+        internal void ConfigureConnectionActivityInternal(Activity activity, DbConnection dbConnection)
+        {
+            foreach (var action in _configureConnectionActions)
+            {
+                action(activity, dbConnection);
             }
         }
 
@@ -85,16 +115,31 @@ namespace DbActivities
             return this;
         }
 
-        /// <summary>
-        /// Allows configuration of the <see cref="DbCommand"/> just before it is executed.
-        /// </summary>
-        /// <typeparam name="TCommand">The type of <see cref="DbCommand"/> to configure.</typeparam>
-        /// <param name="configureCommand">A function to configure the <see cref="DbCommand"/>.</param>
-        /// <returns>This <see cref="InstrumentationOptions"/> for chaining method calls.</returns>
-        public InstrumentationOptions ConfigureDbCommand<TCommand>(Action<TCommand> configureCommand) where TCommand : DbCommand
+        public InstrumentationOptions ConfigureCommandActivity<TCommand>(Action<Activity, TCommand> configureCommandActivity) where TCommand : DbCommand
         {
-            Action<DbCommand> commandAction = c => configureCommand((TCommand)c);
-            _commandActions.Add(commandAction);
+            Action<Activity, DbCommand> configureAction = (activity, command) => configureCommandActivity(activity, (TCommand)command);
+            _configureCommandActions.Add(configureAction);
+            return this;
+        }
+
+        public InstrumentationOptions ConfigureDataReaderActivity<TDataReader>(Action<Activity, TDataReader> configureDataReaderActivity) where TDataReader : DbDataReader
+        {
+            Action<Activity, DbDataReader> configureAction = (activity, dataReader) => configureDataReaderActivity(activity, (TDataReader)dataReader);
+            _configureDataReaderActions.Add(configureAction);
+            return this;
+        }
+
+        public InstrumentationOptions ConfigureConnectionActivity<TConnection>(Action<Activity, TConnection> configureDataReaderActivity) where TConnection : DbConnection
+        {
+            Action<Activity, DbConnection> configureAction = (activity, connection) => configureDataReaderActivity(activity, (TConnection)connection);
+            _configureConnectionActions.Add(configureAction);
+            return this;
+        }
+
+        public InstrumentationOptions ConfigureTransactionActivity<TTransaction>(Action<Activity, TTransaction> configureDataReaderActivity) where TTransaction : DbTransaction
+        {
+            Action<Activity, DbTransaction> configureAction = (activity, transaction) => configureDataReaderActivity(activity, (TTransaction)transaction);
+            _configureTransactionActions.Add(configureAction);
             return this;
         }
 
@@ -103,7 +148,6 @@ namespace DbActivities
             _activityActions.Add(configureActivity);
             return this;
         }
-
 
         /// <summary>
         /// Allows custom configuration of starting activities.

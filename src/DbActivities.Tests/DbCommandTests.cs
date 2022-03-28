@@ -146,9 +146,9 @@ namespace DbActivities.Tests
             command.Connection.Should().BeSameAs(connectionMock.Object);
         }
 
-        public void ShouldConfigureActivity()
+        public void ShouldConfigureCommandActivity()
         {
-            var options = new InstrumentationOptions("sqlite");
+            
         }
 
 
