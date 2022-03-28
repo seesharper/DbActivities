@@ -87,7 +87,6 @@ namespace DbActivities
         {
             using (var activity = _options.ActivitySource.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteNonQuery)}"))
             {
-                _options.ConfigureDbCommandInternal(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.NonQuery);
                 try
                 {
@@ -103,6 +102,7 @@ namespace DbActivities
                 finally
                 {
                     _options.ConfigureActivityInternal(activity);
+                    _options.ConfigureCommandActivityInternal(activity, _innerDbCommand);
                 }
             }
         }
@@ -112,7 +112,6 @@ namespace DbActivities
         {
             using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteNonQueryAsync)}"))
             {
-                _options.ConfigureDbCommandInternal(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.NonQuery);
                 try
                 {
@@ -128,6 +127,7 @@ namespace DbActivities
                 finally
                 {
                     _options.ConfigureActivityInternal(activity);
+                    _options.ConfigureCommandActivityInternal(activity, _innerDbCommand);
                 }
             }
         }
@@ -137,7 +137,6 @@ namespace DbActivities
         {
             using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteScalar)}"))
             {
-                _options.ConfigureDbCommandInternal(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.Scalar);
                 try
                 {
@@ -151,6 +150,7 @@ namespace DbActivities
                 finally
                 {
                     _options.ConfigureActivityInternal(activity);
+                    _options.ConfigureCommandActivityInternal(activity, _innerDbCommand);
                 }
             }
         }
@@ -160,7 +160,6 @@ namespace DbActivities
         {
             using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteScalarAsync)}"))
             {
-                _options.ConfigureDbCommandInternal(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.Scalar);
                 try
                 {
@@ -174,6 +173,7 @@ namespace DbActivities
                 finally
                 {
                     _options.ConfigureActivityInternal(activity);
+                    _options.ConfigureCommandActivityInternal(activity, _innerDbCommand);
                 }
             }
         }
@@ -189,7 +189,6 @@ namespace DbActivities
         {
             using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteReader)}"))
             {
-                _options.ConfigureDbCommandInternal(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.Reader);
                 try
                 {
@@ -203,6 +202,7 @@ namespace DbActivities
                 finally
                 {
                     _options.ConfigureActivityInternal(activity);
+                    _options.ConfigureCommandActivityInternal(activity, _innerDbCommand);
                 }
             }
         }
@@ -212,7 +212,6 @@ namespace DbActivities
         {
             using (var activity = _options.StartActivity($"{nameof(InstrumentedDbCommand)}.{nameof(ExecuteReaderAsync)}"))
             {
-                _options.ConfigureDbCommandInternal(_innerDbCommand);
                 AddCallLevelTags(activity, OperationType.Reader);
                 try
                 {
@@ -227,6 +226,7 @@ namespace DbActivities
                 finally
                 {
                     _options.ConfigureActivityInternal(activity);
+                    _options.ConfigureCommandActivityInternal(activity, _innerDbCommand);
                 }
             }
         }

@@ -92,6 +92,8 @@ namespace DbActivities
             if (disposing)
             {
                 _connectionActivity?.SetTag(OpenTelemetrySemanticNames.DbConnectionString, ConnectionString);
+                _options.ConfigureActivityInternal(_connectionActivity);
+                _options.ConfigureConnectionActivityInternal(_connectionActivity, _innerDbConnection);
                 _connectionActivity?.Dispose();
                 _innerDbConnection.Dispose();
             }

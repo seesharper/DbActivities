@@ -12,6 +12,7 @@ using Xunit;
 namespace DbActivities.Tests
 {
 
+    [Collection("ActivityTests")]
     public class ActivityTests : IDisposable
     {
         private readonly List<Activity> _startedActivities = new();
@@ -37,24 +38,6 @@ namespace DbActivities.Tests
         public void Dispose()
         {
             _activityListener.Dispose();
-        }
-
-        [Fact]
-        public void ShouldConfigureDbCommand()
-        {
-            bool wasConfigured = false;
-            var options = new InstrumentationOptions("sqlite");
-            options.ConfigureDbCommand<SQLiteCommand>(command =>
-            {
-                wasConfigured = true;
-            });
-
-            using (var connection = GetConnection(options))
-            {
-                connection.Execute(Sql.CreateTestTable);
-            }
-
-            wasConfigured.Should().BeTrue();
         }
 
         [Fact]
@@ -495,6 +478,87 @@ namespace DbActivities.Tests
             }
             var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteNonQuery)}");
             commandActivity.Tags.Should().Contain(tag => tag.Key == "db.user" && tag.Value == "TestUser");
+        }
+
+
+        [Fact]
+        public void ShouldConfigureCommandActivity()
+        {
+            var options = new InstrumentationOptions();
+            bool wasConfigured = false;
+            options.ConfigureCommandActivity<SQLiteCommand>((activity, command) =>
+            {
+                wasConfigured = true;
+                command.Should().BeOfType<SQLiteCommand>();
+            });
+
+            using (var connection = GetConnection(options))
+            {
+                connection.Execute("CREATE TABLE TestTable (Id int null)");
+            }
+
+            wasConfigured.Should().BeTrue();
+        }
+
+        [Fact]
+        public void ShouldConfigureDataReaderActivity()
+        {
+            var options = new InstrumentationOptions();
+            bool wasConfigured = false;
+            options.ConfigureDataReaderActivity<SQLiteDataReader>((activity, command) =>
+            {
+                wasConfigured = true;
+                command.Should().BeOfType<SQLiteDataReader>();
+            });
+
+            using (var connection = GetConnection(options))
+            {
+                connection.Execute("CREATE TABLE TestTable (Id int null)");
+                connection.Read<TestRecord>(Sql.GetCount);
+            }
+
+            wasConfigured.Should().BeTrue();
+        }
+
+        [Fact]
+        public void ShouldConfigureConnectionActivity()
+        {
+            var options = new InstrumentationOptions();
+            bool wasConfigured = false;
+            options.ConfigureConnectionActivity<SQLiteConnection>((activity, connection) =>
+            {
+                wasConfigured = true;
+                connection.Should().BeOfType<SQLiteConnection>();
+            });
+
+            using (var connection = GetConnection(options))
+            {
+                connection.Execute("CREATE TABLE TestTable (Id int null)");
+                connection.Read<TestRecord>(Sql.GetCount);
+            }
+
+            wasConfigured.Should().BeTrue();
+        }
+
+        [Fact]
+        public void ShouldConfigureTransactionActivity()
+        {
+            var options = new InstrumentationOptions();
+            bool wasConfigured = false;
+            options.ConfigureTransactionActivity<SQLiteTransaction>((activity, connection) =>
+            {
+                wasConfigured = true;
+                connection.Should().BeOfType<SQLiteTransaction>();
+            });
+
+            using (var connection = GetConnection(options))
+            {
+                using var transaction = connection.BeginTransaction();
+                connection.Execute("CREATE TABLE TestTable (Id int null)");
+                connection.Read<TestRecord>(Sql.GetCount);
+            }
+
+            wasConfigured.Should().BeTrue();
         }
 
 
