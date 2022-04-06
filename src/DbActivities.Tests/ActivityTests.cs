@@ -37,6 +37,8 @@ namespace DbActivities.Tests
 
         public void Dispose()
         {
+            _activityListener.ShouldListenTo = (source) => false;
+            _activityListener.ActivityStarted = activity => { };
             _activityListener.Dispose();
         }
 
@@ -556,6 +558,24 @@ namespace DbActivities.Tests
                 using var transaction = connection.BeginTransaction();
                 connection.Execute("CREATE TABLE TestTable (Id int null)");
                 connection.Read<TestRecord>(Sql.GetCount);
+            }
+
+            wasConfigured.Should().BeTrue();
+        }
+
+        [Fact]
+        public void ShouldConfigureDbCommand()
+        {
+            bool wasConfigured = false;
+            var options = new InstrumentationOptions("sqlite");
+            options.ConfigureDbCommand<SQLiteCommand>(command =>
+            {
+                wasConfigured = true;
+            });
+
+            using (var connection = GetConnection(options))
+            {
+                connection.Execute(Sql.CreateTestTable);
             }
 
             wasConfigured.Should().BeTrue();

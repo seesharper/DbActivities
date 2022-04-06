@@ -60,6 +60,12 @@ We add the following tags in compliance with this https://github.com/open-teleme
 | db.operation     | One of the following values. `nonquery`, `scalar` or `reader`                                                            |
 | db.rows-affected | This is NOT an OpenTelemetry attribute and is only populated for `ExecuteNonQuery` and `ExecuteNonQueryAsync`            |
 
+`DbConnection` is also a factory for `DbCommand` meaning that we can create a new command using `DbConnection.CreateCommand()`. This will return a provider-specific `DbCommand` and we might need to set any provider-specific properties before executing the command. An example would be for an `OracleCommand` where it is pretty common to set `BindByName = true`. This can easily be done using `InstrumentationOptions.ConfigureDbCommand`.
+
+````c#
+var options = new InstrumentationOptions("oracle")
+	.ConfigureDbCommand<OracleCommand>(command => command.BindByName = true);
+
 ### DbDataReader
 
 We start an `Activity` when the \*`InstrumentedDbDataReader` is constructed and we end the `Activity` when the it is disposed.
@@ -102,7 +108,7 @@ var sqliteConnection = new SQLiteConnection();
 // Set things like the ConnectionString and stuff here
 var instrumentationOptions = new InstrumentationOptions(source:"sqlite");
 var dbConnection = new InstrumentedDbConnection(sqliteConnection, options);
-```
+````
 
 ### Enriching Activities
 

@@ -11,6 +11,8 @@ namespace DbActivities
     /// </summary>
     public class InstrumentationOptions
     {
+        private readonly List<Action<DbCommand>> _commandActions = new();
+
         private readonly List<Action<Activity>> _activityActions = new();
 
         private readonly List<Action<Activity, DbCommand>> _configureCommandActions = new();
@@ -51,6 +53,14 @@ namespace DbActivities
         /// Gets or sets the user to be reported as "db.user".
         /// </summary>
         public string User { get; set; }
+
+        internal void ConfigureDbCommandInternal(DbCommand dbCommand)
+        {
+            foreach (var action in _commandActions)
+            {
+                action(dbCommand);
+            }
+        }
 
         internal void ConfigureCommandActivityInternal(Activity activity, DbCommand dbCommand)
         {
@@ -114,6 +124,18 @@ namespace DbActivities
             _formatCommantText = c => format((TCommand)c);
             return this;
         }
+
+        public InstrumentationOptions ConfigureDbCommand<TCommand>(Action<TCommand> configureCommand) where TCommand : DbCommand
+        {
+            Action<DbCommand> commandAction = c =>
+            {
+                configureCommand((TCommand)c);
+            };
+            _commandActions.Add(commandAction);
+
+            return this;
+        }
+
 
         public InstrumentationOptions ConfigureCommandActivity<TCommand>(Action<Activity, TCommand> configureCommandActivity) where TCommand : DbCommand
         {
