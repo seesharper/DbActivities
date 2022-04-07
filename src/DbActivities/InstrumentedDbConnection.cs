@@ -77,7 +77,7 @@ namespace DbActivities
         protected override DbCommand CreateDbCommand()
         {
             var command = _innerDbConnection.CreateCommand();
-            return new InstrumentedDbCommand(command, this, _options);
+            return _options.CommandFactory(command, this, _options);
         }
 
         /// <inheritdoc/>
