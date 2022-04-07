@@ -581,6 +581,17 @@ namespace DbActivities.Tests
             wasConfigured.Should().BeTrue();
         }
 
+        [Fact]
+        public void ShouldUseCustomCommandFactory()
+        {
+            var options = new InstrumentationOptions("sqlite");
+            options.ConfigureCommandFactory((command, connection, options) => new CustomInstrumentedDbCommand(command, connection, options));
+            using (var connection = GetConnection(options))
+            {
+                connection.CreateCommand().Should().BeOfType<CustomInstrumentedDbCommand>();
+            }
+        }
+
 
         private DbConnection GetConnection(InstrumentationOptions options = null)
         {

@@ -25,6 +25,8 @@ namespace DbActivities
 
         private Func<DbCommand, string> _formatCommantText;
 
+        internal Func<DbCommand, DbConnection, InstrumentationOptions, InstrumentedDbCommand> CommandFactory;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="InstrumentationOptions"/> class.
         /// </summary>
@@ -35,6 +37,7 @@ namespace DbActivities
             _activityStarter = (source, name) => source.StartActivity(name, ActivityKind.Client);
             _formatCommantText = (c) => c.CommandText;
             System = system;
+            CommandFactory = (command, connection, options) => new InstrumentedDbCommand(command, connection, options);
         }
 
         /// <summary>
@@ -53,6 +56,13 @@ namespace DbActivities
         /// Gets or sets the user to be reported as "db.user".
         /// </summary>
         public string User { get; set; }
+
+        /// <summary>
+        /// Configures the factory to be used when creating a new <see cref="InstrumentedDbCommand"/>.
+        /// This method is call from <see cref="InstrumentedDbConnection.CreateDbCommand"/>
+        /// </summary>
+        /// <param name="commandFactory"></param>
+        public void ConfigureCommandFactory(Func<DbCommand, DbConnection, InstrumentationOptions, InstrumentedDbCommand> commandFactory) => CommandFactory = commandFactory;
 
         internal void ConfigureDbCommandInternal(DbCommand dbCommand)
         {
