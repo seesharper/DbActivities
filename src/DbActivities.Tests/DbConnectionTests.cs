@@ -1,5 +1,7 @@
 using System.Data;
 using System.Data.Common;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Xunit;
@@ -18,12 +20,30 @@ namespace DbActivities.Tests
         }
 
         [Fact]
+        public async Task ShouldCallOpenAsync()
+        {
+            var dbConnectionMock = new Mock<DbConnection>();
+            var instrumentedDbConnection = dbConnectionMock.Object.AsInstrumentedDbConnection(options => options.ConfigureActivityStarter((name, kind) => null));
+            await instrumentedDbConnection.OpenAsync(It.IsAny<CancellationToken>());
+            dbConnectionMock.Verify(m => m.OpenAsync(It.IsAny<CancellationToken>()));
+        }
+
+        [Fact]
         public void ShouldCallClose()
         {
             var dbConnectionMock = new Mock<DbConnection>();
             var instrumentedDbConnection = dbConnectionMock.Object.AsInstrumentedDbConnection(options => options.ConfigureActivityStarter((name, kind) => null));
             instrumentedDbConnection.Close();
             dbConnectionMock.Verify(m => m.Close());
+        }
+
+        [Fact]
+        public async Task ShouldCallCloseAsync()
+        {
+            var dbConnectionMock = new Mock<DbConnection>();
+            var instrumentedDbConnection = dbConnectionMock.Object.AsInstrumentedDbConnection(options => options.ConfigureActivityStarter((name, kind) => null));
+            await instrumentedDbConnection.CloseAsync();
+            dbConnectionMock.Verify(m => m.CloseAsync());
         }
 
         [Fact]

@@ -1,6 +1,8 @@
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace DbActivities
 {
@@ -32,11 +34,24 @@ namespace DbActivities
             _transactionActivity?.AddEvent(new ActivityEvent(nameof(Commit)));
         }
 
+        public override async Task CommitAsync(CancellationToken cancellationToken = default)
+        {
+            await _innerDbTransaction.CommitAsync(cancellationToken);
+            _transactionActivity?.AddEvent(new ActivityEvent(nameof(CommitAsync)));
+        }
+
         /// <inheritdoc/>
         public override void Rollback()
         {
             _innerDbTransaction.Rollback();
             _transactionActivity?.AddEvent(new ActivityEvent(nameof(Rollback)));
+        }
+
+        /// <inheritdoc/>
+        public override async Task RollbackAsync(CancellationToken cancellationToken = default)
+        {
+            await base.RollbackAsync(cancellationToken);
+            _transactionActivity?.AddEvent(new ActivityEvent(nameof(RollbackAsync)));
         }
 
         protected override void Dispose(bool isDisposing)

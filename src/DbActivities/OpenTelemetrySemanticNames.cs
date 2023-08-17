@@ -5,6 +5,9 @@ namespace DbActivities
     /// </summary>
     public static class OpenTelemetrySemanticNames
     {
+        /// <summary>
+        /// The semantic convention for the name of the database being accessed.
+        /// </summary>
         public const string DbName = "db.statement";
 
         public const string DbStatement = "db.statement";
@@ -24,6 +27,8 @@ namespace DbActivities
         public const string ExceptionMessage = "exception.message";
 
         public const string ExceptionStackTrace = "exception.stacktrace";
+
+        public const string DbConnectionsUsage = "db.client.connections.usage";
     }
 
     public static class CustomTagNames

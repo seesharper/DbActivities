@@ -1,6 +1,6 @@
 using System.Data;
 using System.Data.Common;
-using System.Data.SQLite;
+
 using FluentAssertions;
 using Moq;
 using Xunit;
@@ -146,13 +146,7 @@ namespace DbActivities.Tests
             command.Connection.Should().BeSameAs(connectionMock.Object);
         }
 
-        public void ShouldConfigureCommandActivity()
-        {
-            
-        }
-
-
-
+        
         private static InstrumentedDbCommand CreateInstrumentedDbCommand(DbCommand reader)
            => new InstrumentedDbCommand(reader, new Mock<DbConnection>().Object, new InstrumentationOptions("sqlite") { ActivitySource = null });
     }

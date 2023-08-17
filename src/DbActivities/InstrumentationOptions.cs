@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Reflection;
 
 namespace DbActivities
@@ -23,7 +24,7 @@ namespace DbActivities
 
         private readonly List<Action<Activity, DbTransaction>> _configureTransactionActions = new();
 
-        private Func<DbCommand, string> _formatCommantText;
+        private Func<DbCommand, string> _formatCommandText;
 
         internal Func<DbCommand, DbConnection, InstrumentationOptions, InstrumentedDbCommand> CommandFactory;
 
@@ -34,8 +35,9 @@ namespace DbActivities
         public InstrumentationOptions(string system = "other_sql")
         {
             ActivitySource = Assembly.GetCallingAssembly().CreateActivitySource();
+            Meter = Assembly.GetCallingAssembly().CreateMeter();
             _activityStarter = (source, name) => source.StartActivity(name, ActivityKind.Client);
-            _formatCommantText = (c) => c.CommandText;
+            _formatCommandText = (c) => c.CommandText;
             System = system;
             CommandFactory = (command, connection, options) => new InstrumentedDbCommand(command, connection, options);
         }
@@ -44,6 +46,11 @@ namespace DbActivities
         /// Gets or sets the <see cref="ActivitySource"/> to be used for creating new activities.
         /// </summary>
         public ActivitySource ActivitySource { get; set; }
+
+        /// <summary>
+        /// Gets or sets the <see cref="Meter"/> that is used to create new <see cref="Instrument{T}"/> instances.
+        /// </summary>
+        public static Meter Meter { get; set; }
 
         private Func<ActivitySource, string, Activity?> _activityStarter;
 
@@ -114,7 +121,7 @@ namespace DbActivities
 
         internal string FormatCommandTextInternal(DbCommand dbCommand)
         {
-            return _formatCommantText(dbCommand);
+            return _formatCommandText(dbCommand);
         }
 
         internal Activity StartActivity(string name)
@@ -131,7 +138,7 @@ namespace DbActivities
         /// <returns>This <see cref="InstrumentationOptions"/> for chaining method calls.</returns>
         public InstrumentationOptions FormatCommandText<TCommand>(Func<TCommand, string> format) where TCommand : DbCommand
         {
-            _formatCommantText = c => format((TCommand)c);
+            _formatCommandText = c => format((TCommand)c);
             return this;
         }
 
