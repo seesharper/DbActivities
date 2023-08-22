@@ -7,6 +7,7 @@ using Xunit;
 
 namespace DbActivities.Tests;
 
+[Collection("ActivityTests")]
 public class MetricsTests
 {
     private readonly MeterListener _meterListener;

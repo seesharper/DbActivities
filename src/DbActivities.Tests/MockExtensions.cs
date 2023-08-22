@@ -1,5 +1,6 @@
 namespace DbActivities.Tests;
 
+using System;
 using System.Data;
 using System.Data.Common;
 using System.Threading;
@@ -50,7 +51,7 @@ public static class DataReaderExtensions
         while (reader.Read())
         {
         }
-        reader.Close();
+        ((IDisposable)reader).Dispose();
     }
 
     public static async Task ReadToEndAsync(this DbDataReader reader)
@@ -58,5 +59,6 @@ public static class DataReaderExtensions
         while (await reader.ReadAsync())
         {
         }
+        await reader.DisposeAsync();
     }
 }

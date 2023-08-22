@@ -54,6 +54,59 @@ namespace DbActivities.Tests
         }
 
         [Fact]
+        public void ShouldHandleConnectionBeingDisposedTwice()
+        {
+            var connection = GetConnection();
+            connection.Dispose();
+            connection.Dispose();
+
+            _startedActivities.Count.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task ShouldHandleConnectionBeingDisposedAsyncTwice()
+        {
+            var connection = GetConnection();
+            await connection.DisposeAsync();
+            await connection.DisposeAsync();
+
+            _startedActivities.Count.Should().Be(1);
+        }
+
+        [Fact]
+        public void ShouldHandleConnectionActivityBeingNullWhenDisposed()
+        {
+            var options = new InstrumentationOptions();
+            options.ConfigureActivityStarter((source, kind) => null);
+            using (var connection = GetConnection(options: options))
+            {
+            }
+            VerifyNoActivities();
+        }
+
+        [Fact]
+        public async Task ShouldHandleConnectionActivityBeingNullWhenDisposedAsync()
+        {
+            var options = new InstrumentationOptions();
+            options.ConfigureActivityStarter((source, kind) => null);
+            await using (var connection = GetConnection(options: options))
+            {
+            }
+            VerifyNoActivities();
+        }
+
+        [Fact]
+        public async Task ShouldHandleActivityBeingNullWhenExecuteNonQueryAsync()
+        {
+            var options = new InstrumentationOptions();
+            options.ConfigureActivityStarter((source, kind) => null);
+            var command = GetCommand(m => m.SetupExecuteNonQuery().Returns(1), options);
+            await command.ExecuteNonQueryAsync();
+            VerifyNoActivities();
+        }
+
+
+        [Fact]
         public void ShouldPopulateCallLevelTagsWhenExecutingNonQuery()
         {
             GetConnection().CreateCommand().ExecuteNonQuery();
@@ -187,7 +240,7 @@ namespace DbActivities.Tests
         [Fact]
         public async Task ShouldAddRowsReadWhenExecutingReaderAsync()
         {
-            (await GetConnection().CreateCommand().ExecuteReaderAsync()).ReadToEnd();
+            await (await GetConnection().CreateCommand().ExecuteReaderAsync()).ReadToEndAsync();
             VerifyReaderActivity(activity => activity.Tags.Should().Contain(tag => tag.Key == CustomTagNames.RowsRead && tag.Value == "3"));
         }
 
@@ -195,6 +248,13 @@ namespace DbActivities.Tests
         public void ShouldCreateTransactionWithConnectionActivityAsParent()
         {
             GetConnection().BeginTransaction();
+            GetTransactionActivity().Parent.Should().Be(GetConnectionActivity());
+        }
+
+        [Fact]
+        public async Task ShouldCreateTransactionWithConnectionActivityAsParentAsync()
+        {
+            await GetConnection().BeginTransactionAsync();
             GetTransactionActivity().Parent.Should().Be(GetConnectionActivity());
         }
 
@@ -294,7 +354,7 @@ namespace DbActivities.Tests
         {
             var options = new InstrumentationOptions();
             options.ConfigureActivityStarter((source, kind) => null);
-            var command = GetCommand(m => m.SetupDbDataReaderAsync().Throws<Exception>(), options);
+            var command = GetCommand(m => m.SetupExecuteNonQueryAsync().Throws<Exception>(), options);
 
             try
             {
@@ -381,7 +441,7 @@ namespace DbActivities.Tests
                 wasConfigured = true;
             });
 
-            var command = GetCommand(m => m.SetupDbDataReader(), options);
+            var command = GetCommand(options: options);
             command.ExecuteReader().ReadToEnd();
 
             wasConfigured.Should().BeTrue();
@@ -405,7 +465,24 @@ namespace DbActivities.Tests
         }
 
         [Fact]
-        public void ShouldConfigureTransactionActivity2()
+        public async Task ShouldConfigureConnectionActivityAsync()
+        {
+            var options = new InstrumentationOptions();
+            bool wasConfigured = false;
+            options.ConfigureConnectionActivity<DbConnection>((activity, connection) =>
+            {
+                wasConfigured = true;
+            });
+
+            await using (var connection = GetConnection(options: options))
+            {
+            }
+
+            wasConfigured.Should().BeTrue();
+        }
+
+        [Fact]
+        public void ShouldConfigureTransactionActivity()
         {
             var options = new InstrumentationOptions();
             bool wasConfigured = false;
@@ -425,6 +502,24 @@ namespace DbActivities.Tests
             wasConfigured.Should().BeTrue();
         }
 
+        [Fact]
+        public async Task ShouldConfigureTransactionActivityAsync()
+        {
+            var options = new InstrumentationOptions();
+            bool wasConfigured = false;
+            options.ConfigureTransactionActivity<DbTransaction>((activity, transaction) =>
+            {
+                wasConfigured = true;
+            });
+            var connection = GetConnection(options: options);
+
+            using (var transaction = await connection.BeginTransactionAsync())
+            {
+                await transaction.DisposeAsync();
+            }
+
+            wasConfigured.Should().BeTrue();
+        }
 
         [Fact]
         public void ShouldConfigureDbCommand()
@@ -460,15 +555,17 @@ namespace DbActivities.Tests
 
             var dataReaderMock = new Mock<DbDataReader>();
             dataReaderMock.SetupSequence(r => r.Read()).Returns(true).Returns(true).Returns(true).Returns(false);
+            dataReaderMock.SetupSequence(r => r.ReadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true).ReturnsAsync(true).ReturnsAsync(true).ReturnsAsync(false);
 
             var transactionMock = new Mock<DbTransaction>();
             connectionMock.Protected().Setup<DbTransaction>("BeginDbTransaction", ItExpr.IsAny<IsolationLevel>()).Returns(transactionMock.Object);
+            connectionMock.Protected().Setup<ValueTask<DbTransaction>>("BeginDbTransactionAsync", ItExpr.IsAny<IsolationLevel>(), It.IsAny<CancellationToken>()).Returns(ValueTask.FromResult(transactionMock.Object));
             connectionMock.SetupProperty(c => c.ConnectionString, "SomeConnectionString");
 
             //connectionMock.Protected().Setup<DbTransaction>("BeginDbTransaction").Returns(transactionMock.Object);
 
             commandMock.SetupGet(c => c.CommandText).Returns("SampleCommandText");
-            configureCommandMock(commandMock);
+
             connectionMock.Protected().Setup<DbCommand>("CreateDbCommand").Returns(commandMock.Object);
 
 
@@ -476,6 +573,7 @@ namespace DbActivities.Tests
             commandMock.Protected().Setup<DbDataReader>("ExecuteDbDataReader", It.IsAny<CommandBehavior>()).Returns(dataReaderMock.Object);
             commandMock.Protected().Setup<Task<DbDataReader>>("ExecuteDbDataReaderAsync", It.IsAny<CommandBehavior>(), It.IsAny<CancellationToken>()).Returns(Task.FromResult(dataReaderMock.Object));
             var connection = new InstrumentedDbConnection(connectionMock.Object, options);
+            configureCommandMock(commandMock);
             return connection;
         }
 

@@ -8,6 +8,7 @@ using Xunit;
 
 namespace DbActivities.Tests
 {
+    [Collection("ActivityTests")]
     public class DbDataReaderTests
     {
         [Fact]

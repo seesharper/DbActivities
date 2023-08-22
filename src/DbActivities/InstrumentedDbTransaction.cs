@@ -65,5 +65,17 @@ namespace DbActivities
             }
             base.Dispose(isDisposing);
         }
+
+        public override async ValueTask DisposeAsync()
+        {
+            _options.ConfigureActivityInternal(_transactionActivity);
+            _options.ConfigureTransactionActivityInternal(_transactionActivity, _innerDbTransaction);
+            await _innerDbTransaction.DisposeAsync();
+            _transactionActivity?.Dispose();
+
+            await base.DisposeAsync();
+        }
+
+
     }
 }
