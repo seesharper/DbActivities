@@ -1,12 +1,14 @@
 using System.Data;
 using System.Data.Common;
-using System.Data.SQLite;
+
 using FluentAssertions;
 using Moq;
+using Moq.Protected;
 using Xunit;
 
 namespace DbActivities.Tests
 {
+    [Collection("ActivityTests")]
     public class DbCommandTests
     {
 
@@ -98,6 +100,26 @@ namespace DbActivities.Tests
         }
 
         [Fact]
+        public void ShouldCreateParameter()
+        {
+            var mock = new Mock<DbCommand>();
+            mock.Protected().Setup<DbParameter>("CreateDbParameter").Returns(new Mock<DbParameter>().Object);
+            var instrumentinstrumentedDbCommand = CreateInstrumentedDbCommand(mock.Object);
+            instrumentinstrumentedDbCommand.CreateParameter();
+            mock.Protected().Verify<DbParameter>("CreateDbParameter", Times.Once());
+        }
+
+        [Fact]
+        public void ShouldGetDbParameterCollection()
+        {
+            var mock = new Mock<DbCommand>();
+            mock.Protected().Setup<DbParameterCollection>("DbParameterCollection").Returns(new Mock<DbParameterCollection>().Object);
+            var instrumentinstrumentedDbCommand = CreateInstrumentedDbCommand(mock.Object);
+            instrumentinstrumentedDbCommand.Parameters.Should().BeSameAs(mock.Object.Parameters);
+        }
+
+
+        [Fact]
         public void ShouldGetConnectionAsInstrumentedDbConnection()
         {
             var options = new InstrumentationOptions("sqlite");
@@ -145,12 +167,6 @@ namespace DbActivities.Tests
             command.Connection = connectionMock.Object;
             command.Connection.Should().BeSameAs(connectionMock.Object);
         }
-
-        public void ShouldConfigureCommandActivity()
-        {
-            
-        }
-
 
 
         private static InstrumentedDbCommand CreateInstrumentedDbCommand(DbCommand reader)

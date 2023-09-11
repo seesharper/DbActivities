@@ -241,7 +241,7 @@ namespace DbActivities
         {
             activity?.AddTag(OpenTelemetrySemanticNames.DbStatement, _options.FormatCommandTextInternal(_innerDbCommand));
             activity?.AddTag(OpenTelemetrySemanticNames.DbOperation, operation);
-            activity?.AddTag(OpenTelemetrySemanticNames.DbUser, _options.User);
+            activity?.AddTag(OpenTelemetrySemanticNames.DbName, _options.DbName);
         }
     }
 }

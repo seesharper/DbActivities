@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
-using System.Data.SQLite;
 using System.Diagnostics;
-using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
-using DbReader;
 using FluentAssertions;
+using Moq;
+using Moq.Protected;
 using Xunit;
 
 namespace DbActivities.Tests
@@ -43,58 +44,93 @@ namespace DbActivities.Tests
         }
 
         [Fact]
-        public async Task ShouldPopulateConnectionLevelTags()
+        public void ShouldPopulateConnectionLevelTags()
         {
-            using (GetConnection())
+            using (var connection = GetConnection())
             {
-                await Task.Delay(1);
             }
-
             var connectionActivity = _startedActivities.GetActivity(nameof(InstrumentedDbConnection));
             connectionActivity.ShouldHaveConnectionLevelTags();
         }
 
         [Fact]
-        public async Task ShouldPopulateCallLevelTagsWhenExecutingNonQuery()
+        public void ShouldHandleConnectionBeingDisposedTwice()
         {
-            using (var connection = GetConnection())
-            {
-                connection.Execute(Sql.CreateTestTable);
-                await Task.Delay(1);
-            };
+            var connection = GetConnection();
+            connection.Dispose();
+            connection.Dispose();
 
-            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteNonQuery)}");
-            commandActivity.ShouldHaveCallLevelTags(OperationType.NonQuery);
+            _startedActivities.Count.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task ShouldHandleConnectionBeingDisposedAsyncTwice()
+        {
+            var connection = GetConnection();
+            await connection.DisposeAsync();
+            await connection.DisposeAsync();
+
+            _startedActivities.Count.Should().Be(1);
+        }
+
+        [Fact]
+        public void ShouldHandleConnectionActivityBeingNullWhenDisposed()
+        {
+            var options = new InstrumentationOptions();
+            options.ConfigureActivityStarter((source, kind) => null);
+            using (var connection = GetConnection(options: options))
+            {
+            }
+            VerifyNoActivities();
+        }
+
+        [Fact]
+        public async Task ShouldHandleConnectionActivityBeingNullWhenDisposedAsync()
+        {
+            var options = new InstrumentationOptions();
+            options.ConfigureActivityStarter((source, kind) => null);
+            await using (var connection = GetConnection(options: options))
+            {
+            }
+            VerifyNoActivities();
+        }
+
+        [Fact]
+        public async Task ShouldHandleActivityBeingNullWhenExecuteNonQueryAsync()
+        {
+            var options = new InstrumentationOptions();
+            options.ConfigureActivityStarter((source, kind) => null);
+            var command = GetCommand(m => m.SetupExecuteNonQuery().Returns(1), options);
+            await command.ExecuteNonQueryAsync();
+            VerifyNoActivities();
+        }
+
+
+        [Fact]
+        public void ShouldPopulateCallLevelTagsWhenExecutingNonQuery()
+        {
+            GetConnection().CreateCommand().ExecuteNonQuery();
+            VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteNonQuery), activity => activity.ShouldHaveCallLevelTags(OperationType.NonQuery));
         }
 
         [Fact]
         public async Task ShouldPopulateCallLevelTagsWhenExecutingNonQueryAsync()
         {
-            using (var connection = GetConnection())
-            {
-                await connection.ExecuteAsync(Sql.CreateTestTable);
-                await Task.Delay(1);
-            };
-
-            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteNonQueryAsync)}");
-            commandActivity.ShouldHaveCallLevelTags(OperationType.NonQuery);
+            await GetConnection().CreateCommand().ExecuteNonQueryAsync();
+            VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteNonQueryAsync), activity => activity.ShouldHaveCallLevelTags(OperationType.NonQuery));
         }
 
         [Fact]
-        public async Task ShouldAddExceptionEventWhenExecutingNonQuery()
+        public void ShouldAddExceptionEventWhenExecutingNonQuery()
         {
             try
             {
-                using (var connection = GetConnection())
-                {
-                    connection.Execute(Sql.Rubbish);
-                    await Task.Delay(1);
-                };
+                var command = GetCommand(cm => cm.SetupExecuteNonQuery().Throws<Exception>());
+                command.ExecuteNonQuery();
             }
             catch (Exception)
             {
-                var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteNonQuery)}");
-                commandActivity.ShouldHaveExceptionEvent();
+                VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteNonQuery), activity => activity.ShouldHaveExceptionEvent());
             }
         }
 
@@ -103,68 +139,40 @@ namespace DbActivities.Tests
         {
             try
             {
-                using (var connection = GetConnection())
-                {
-                    await connection.ExecuteAsync(Sql.Rubbish);
-                    await Task.Delay(1);
-                };
+                var command = GetCommand(cm => cm.SetupExecuteNonQueryAsync().Throws<Exception>());
+                await command.ExecuteNonQueryAsync();
             }
             catch (Exception)
             {
-                var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteNonQueryAsync)}");
-                commandActivity.ShouldHaveExceptionEvent();
+                VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteNonQueryAsync), activity => activity.ShouldHaveExceptionEvent());
             }
         }
 
         [Fact]
-        public async Task ShouldPopulateCallLevelTagsWhenExecutingScalar()
+        public void ShouldPopulateCallLevelTagsWhenExecutingScalar()
         {
-            using (var connection = GetConnection())
-            {
-                connection.Execute(Sql.CreateTestTable);
-                var command = connection.CreateCommand(Sql.GetCount);
-                command.ExecuteScalar();
-                await Task.Delay(1);
-            };
-
-            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteScalar)}");
-            commandActivity.ShouldHaveCallLevelTags(OperationType.Scalar);
+            GetCommand(cm => cm.SetupExecuteScalar().Returns(1)).ExecuteScalar();
+            VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteScalar), activity => activity.ShouldHaveCallLevelTags(OperationType.Scalar));
         }
 
         [Fact]
         public async Task ShouldPopulateCallLevelTagsWhenExecutingScalarAsync()
         {
-            using (var connection = GetConnection())
-            {
-                connection.Execute(Sql.CreateTestTable);
-                var command = (DbCommand)connection.CreateCommand(Sql.GetCount);
-                await command.ExecuteScalarAsync();
-                await Task.Delay(1);
-            };
-
-            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteScalarAsync)}");
-            commandActivity.ShouldHaveCallLevelTags(OperationType.Scalar);
+            await GetCommand(cm => cm.SetupExecuteScalarAsync().ReturnsAsync(1)).ExecuteScalarAsync();
+            VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteScalarAsync), activity => activity.ShouldHaveCallLevelTags(OperationType.Scalar));
         }
 
-
         [Fact]
-        public async Task ShouldAddExceptionEventWhenExecutingScalar()
+        public void ShouldAddExceptionEventWhenExecutingScalar()
         {
             try
             {
-                using (var connection = GetConnection())
-                {
-                    connection.Execute(Sql.CreateTestTable);
-                    var command = connection.CreateCommand(Sql.GetCount);
-                    command.CommandText = Sql.Rubbish;
-                    command.ExecuteScalar();
-                    await Task.Delay(1);
-                };
+                var command = GetCommand(cm => cm.SetupExecuteScalar().Throws<Exception>());
+                command.ExecuteScalar();
             }
             catch (Exception)
             {
-                var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteScalar)}");
-                commandActivity.ShouldHaveExceptionEvent();
+                VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteScalar), activity => activity.ShouldHaveExceptionEvent());
             }
         }
 
@@ -173,65 +181,39 @@ namespace DbActivities.Tests
         {
             try
             {
-                using (var connection = GetConnection())
-                {
-                    connection.Execute(Sql.CreateTestTable);
-                    var command = (DbCommand)connection.CreateCommand(Sql.GetCount);
-                    command.CommandText = Sql.Rubbish;
-                    await command.ExecuteScalarAsync();
-                    await Task.Delay(1);
-                };
+                var command = GetCommand(cm => cm.SetupExecuteScalarAsync().Throws<Exception>());
+                await command.ExecuteScalarAsync();
             }
             catch (Exception)
             {
-                var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteScalarAsync)}");
-                commandActivity.ShouldHaveExceptionEvent();
+                VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteScalarAsync), activity => activity.ShouldHaveExceptionEvent());
             }
         }
 
         [Fact]
-        public async Task ShouldPopulateCallLevelTagsWhenExecutingReader()
+        public void ShouldPopulateCallLevelTagsWhenExecutingReader()
         {
-            using (var connection = GetConnection())
-            {
-                connection.Execute(Sql.CreateTestTable);
-                connection.Read<TestRecord>("SELECT Id FROM TestTable");
-                await Task.Delay(1);
-            };
-
-            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteReader)}");
-            commandActivity.ShouldHaveCallLevelTags(OperationType.Reader);
+            GetCommand().ExecuteReader();
+            VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteReader), activity => activity.ShouldHaveCallLevelTags(OperationType.Reader));
         }
 
         [Fact]
         public async Task ShouldPopulateCallLevelTagsWhenExecutingReaderAsync()
         {
-            using (var connection = GetConnection())
-            {
-                connection.Execute(Sql.CreateTestTable);
-                await connection.ReadAsync<TestRecord>("SELECT Id FROM TestTable");
-                await Task.Delay(1);
-            };
-
-            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteReaderAsync)}");
-            commandActivity.ShouldHaveCallLevelTags(OperationType.Reader);
+            await GetCommand().ExecuteReaderAsync();
+            VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteReaderAsync), activity => activity.ShouldHaveCallLevelTags(OperationType.Reader));
         }
 
         [Fact]
-        public async Task ShouldAddExceptionEventWhenExecutingReader()
+        public void ShouldAddExceptionEventWhenExecutingReader()
         {
             try
             {
-                using (var connection = GetConnection())
-                {
-                    connection.Read<TestRecord>(Sql.Rubbish);
-                    await Task.Delay(1);
-                };
+                GetCommand(cm => cm.SetupDbDataReader().Throws<Exception>()).ExecuteReader();
             }
             catch (Exception)
             {
-                var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteReader)}");
-                commandActivity.ShouldHaveExceptionEvent();
+                VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteReader), activity => activity.ShouldHaveExceptionEvent());
             }
         }
 
@@ -240,128 +222,88 @@ namespace DbActivities.Tests
         {
             try
             {
-                using (var connection = GetConnection())
-                {
-                    await connection.ReadAsync<TestRecord>(Sql.Rubbish);
-                    await Task.Delay(1);
-                };
+                await GetCommand(cm => cm.SetupDbDataReaderAsync().Throws<Exception>()).ExecuteReaderAsync();
             }
             catch (Exception)
             {
-                var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteReaderAsync)}");
-                commandActivity.ShouldHaveExceptionEvent();
+                VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteReaderAsync), activity => activity.ShouldHaveExceptionEvent());
             }
         }
-
 
         [Fact]
         public void ShouldAddRowsReadWhenExecutingReader()
         {
-            using (var connection = GetConnection())
-            {
-                connection.Execute("CREATE TABLE TestTable (Id int null)");
-                connection.Execute("INSERT INTO TestTable(Id) VALUES(@id)", new { Id = 1 });
-                connection.Execute("INSERT INTO TestTable(Id) VALUES(@id)", new { Id = 2 });
-                connection.Execute("INSERT INTO TestTable(Id) VALUES(@id)", new { Id = 3 });
-                var result = connection.Read<TestRecord>("SELECT Id FROM TestTable");
-                result.Count().Should().Be(3);
-                var readerActivity = _startedActivities.GetActivity(nameof(InstrumentedDbDataReader));
-                readerActivity.Tags.Should().Contain(tag => tag.Key == CustomTagNames.RowsRead && tag.Value == "3");
-            }
+            GetConnection().CreateCommand().ExecuteReader().ReadToEnd();
+            VerifyReaderActivity(activity => activity.Tags.Should().Contain(tag => tag.Key == CustomTagNames.RowsRead && tag.Value == "3"));
         }
 
         [Fact]
         public async Task ShouldAddRowsReadWhenExecutingReaderAsync()
         {
-            using (var connection = GetConnection())
-            {
-                connection.Execute("CREATE TABLE TestTable (Id int null)");
-                connection.Execute("INSERT INTO TestTable(Id) VALUES(@id)", new { Id = 1 });
-                connection.Execute("INSERT INTO TestTable(Id) VALUES(@id)", new { Id = 2 });
-                connection.Execute("INSERT INTO TestTable(Id) VALUES(@id)", new { Id = 3 });
-                using (var reader = (DbDataReader)await connection.ExecuteReaderAsync("SELECT Id FROM TestTable"))
-                {
-                    while (await reader.ReadAsync())
-                    {
-
-                    }
-                }
-
-                var readerActivity = _startedActivities.GetActivity(nameof(InstrumentedDbDataReader));
-                readerActivity.Tags.Should().Contain(tag => tag.Key == CustomTagNames.RowsRead && tag.Value == "3");
-            }
+            await (await GetConnection().CreateCommand().ExecuteReaderAsync()).ReadToEndAsync();
+            VerifyReaderActivity(activity => activity.Tags.Should().Contain(tag => tag.Key == CustomTagNames.RowsRead && tag.Value == "3"));
         }
 
         [Fact]
         public void ShouldCreateTransactionWithConnectionActivityAsParent()
         {
-            using (var connection = GetConnection())
-            {
-                using (var transaction = connection.BeginTransaction())
-                {
-                    connection.Execute("CREATE TABLE TestTable (Id int null)");
-                }
-            }
+            GetConnection().BeginTransaction();
+            GetTransactionActivity().Parent.Should().Be(GetConnectionActivity());
+        }
 
-            var connectionActivity = _startedActivities.GetActivity(nameof(InstrumentedDbConnection));
-            var transactionActivity = _startedActivities.GetActivity(nameof(InstrumentedDbTransaction));
-            transactionActivity.Parent.Should().Be(connectionActivity);
+        [Fact]
+        public async Task ShouldCreateTransactionWithConnectionActivityAsParentAsync()
+        {
+            await GetConnection().BeginTransactionAsync();
+            GetTransactionActivity().Parent.Should().Be(GetConnectionActivity());
+        }
+
+        [Fact]
+        public void ShouldCreateTransactionWithIsolationLevelWithConnectionActivityAsParent()
+        {
+            GetConnection().BeginTransaction(IsolationLevel.ReadUncommitted);
+            GetTransactionActivity().Parent.Should().Be(GetConnectionActivity());
         }
 
         [Fact]
         public void ShouldAddCommitEventWhenTransactionIsCommitted()
         {
-            using (var connection = GetConnection())
-            {
-                using (var transaction = connection.BeginTransaction())
-                {
-                    connection.Execute("CREATE TABLE TestTable (Id int null)");
-                    transaction.Commit();
-                }
-            }
-
-            var connectionActivity = _startedActivities.GetActivity(nameof(InstrumentedDbConnection));
-            var transactionActivity = _startedActivities.GetActivity(nameof(InstrumentedDbTransaction));
-            transactionActivity.Parent.Should().Be(connectionActivity);
+            GetConnection().BeginTransaction().Commit();
+            VerifyTransactionEvent(nameof(InstrumentedDbTransaction.Commit));
         }
 
         [Fact]
-        public void ShouldAddCommitEventWhenTransactionIsRolledBack()
+        public async Task ShouldAddCommitAsyncEventWhenTransactionIsCommittedAsync()
         {
-            using (var connection = GetConnection())
-            {
-                using (var transaction = connection.BeginTransaction())
-                {
-                    connection.Execute("CREATE TABLE TestTable (Id int null)");
-                    transaction.Rollback();
-                }
-            }
-
-            var connectionActivity = _startedActivities.GetActivity(nameof(InstrumentedDbConnection));
-            var transactionActivity = _startedActivities.GetActivity(nameof(InstrumentedDbTransaction));
-            transactionActivity.Parent.Should().Be(connectionActivity);
+            await GetConnection().BeginTransaction().CommitAsync();
+            VerifyTransactionEvent(nameof(InstrumentedDbTransaction.CommitAsync));
         }
 
         [Fact]
-        public void ShouldHandleTransactionWhenActivityIsNull()
+        public void ShouldAddRollbackEventWhenTransactionIsRolledBack()
+        {
+            GetConnection().BeginTransaction().Rollback();
+            VerifyTransactionEvent(nameof(InstrumentedDbTransaction.Rollback));
+        }
+
+        [Fact]
+        public async Task ShouldAddRollbackAsyncEventWhenTransactionIsRolledBackAsync()
+        {
+            await GetConnection().BeginTransaction().RollbackAsync();
+            VerifyTransactionEvent(nameof(InstrumentedDbTransaction.RollbackAsync));
+        }
+
+        [Fact]
+        public async Task ShouldHandleTransactionWhenActivityIsNull()
         {
             var options = new InstrumentationOptions();
             options.ConfigureActivityStarter((source, kind) => null);
+            GetConnection(options: options).BeginTransaction().Commit();
+            GetConnection(options: options).BeginTransaction().Rollback();
+            await GetConnection(options: options).BeginTransaction().CommitAsync();
+            await GetConnection(options: options).BeginTransaction().RollbackAsync();
 
-            using (var connection = GetConnection(options))
-            {
-                using (var transaction = connection.BeginTransaction())
-                {
-                    connection.Execute("CREATE TABLE TestTable (Id int null)");
-                    transaction.Rollback();
-                }
-
-                using (var transaction = connection.BeginTransaction())
-                {
-                    connection.Execute("CREATE TABLE TestTable (Id int null)");
-                    transaction.Commit();
-                }
-            }
+            VerifyNoActivities();
         }
 
         [Fact]
@@ -375,7 +317,7 @@ namespace DbActivities.Tests
                     command.Transaction = transaction;
                     command.Transaction.Should().BeOfType<InstrumentedDbTransaction>();
                     command.Transaction = ((InstrumentedDbTransaction)transaction).InnerDbTransaction;
-                    command.Transaction.Should().BeOfType<SQLiteTransaction>();
+                    command.Transaction.Should().BeOfType(((InstrumentedDbTransaction)transaction).InnerDbTransaction.GetType());
                 }
             }
         }
@@ -383,43 +325,42 @@ namespace DbActivities.Tests
         [Fact]
         public async Task ShouldHandleExecuteDbDataReaderAsyncWhenActivityIsNull()
         {
-            using (var connection = GetConnection(new InstrumentationOptions().ConfigureActivityStarter((source, kind) => null)))
-            {
-                await connection.ExecuteAsync(Sql.CreateTestTable);
-                await connection.ReadAsync<TestRecord>("SELECT Id FROM TestTable");
-            }
-            _startedActivities.Should().BeEmpty();
+            var options = new InstrumentationOptions();
+            options.ConfigureActivityStarter((source, kind) => null);
+            await GetConnection(options: options).CreateCommand().ExecuteReaderAsync();
+            VerifyNoActivities();
         }
 
         [Fact]
         public async Task ShouldHandleExceptionWhenActivityIsNullForReadAsync()
         {
+            var options = new InstrumentationOptions();
+            options.ConfigureActivityStarter((source, kind) => null);
+            var command = GetCommand(m => m.SetupDbDataReaderAsync().Throws<Exception>(), options);
+
             try
             {
-                using (var connection = GetConnection(new InstrumentationOptions().ConfigureActivityStarter((source, kind) => null)))
-                {
-                    await connection.ExecuteAsync(Sql.CreateTestTable);
-                    await connection.ReadAsync<TestRecord>(Sql.Rubbish);
-                }
+                var reader = await command.ExecuteReaderAsync();
             }
-            catch (System.Exception)
+            catch (Exception)
             {
-                _startedActivities.Should().BeEmpty();
+                VerifyNoActivities();
             }
+
         }
 
         [Fact]
         public async Task ShouldHandleExceptionWhenActivityIsNullForExecuteNonQueryAsync()
         {
+            var options = new InstrumentationOptions();
+            options.ConfigureActivityStarter((source, kind) => null);
+            var command = GetCommand(m => m.SetupExecuteNonQueryAsync().Throws<Exception>(), options);
+
             try
             {
-                using (var connection = GetConnection(new InstrumentationOptions().ConfigureActivityStarter((source, kind) => null)))
-                {
-                    await connection.ExecuteAsync(Sql.CreateTestTable);
-                    await connection.ExecuteAsync(Sql.Rubbish);
-                }
+                await command.ExecuteNonQueryAsync();
             }
-            catch (System.Exception)
+            catch (Exception)
             {
                 _startedActivities.Should().BeEmpty();
             }
@@ -428,17 +369,15 @@ namespace DbActivities.Tests
         [Fact]
         public async Task ShouldHandleExceptionWhenActivityIsNullForReadScalarAsync()
         {
+            var options = new InstrumentationOptions();
+            options.ConfigureActivityStarter((source, kind) => null);
+            var command = GetCommand(m => m.SetupExecuteScalarAsync().Throws<Exception>(), options);
+
             try
             {
-                using (var connection = GetConnection(new InstrumentationOptions().ConfigureActivityStarter((source, kind) => null)))
-                {
-                    await connection.ExecuteAsync(Sql.CreateTestTable);
-                    var command = connection.CreateCommand();
-                    command.CommandText = Sql.Rubbish;
-                    await command.ExecuteScalarAsync();
-                }
+                await command.ExecuteScalarAsync();
             }
-            catch (System.Exception)
+            catch (Exception)
             {
                 _startedActivities.Should().BeEmpty();
             }
@@ -447,39 +386,32 @@ namespace DbActivities.Tests
         [Fact]
         public void ShouldCallFormatCommandText()
         {
-            var options = new InstrumentationOptions().FormatCommandText<SQLiteCommand>(command => "MyCommandText");
-            using (var connection = GetConnection(options))
-            {
-                connection.Execute("CREATE TABLE TestTable (Id int null)");
-            }
-            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteNonQuery)}");
-            commandActivity.Tags.Should().Contain(tag => tag.Key == "db.statement" && tag.Value == "MyCommandText");
+            var options = new InstrumentationOptions().FormatCommandText<DbCommand>(command => "MyCommandText");
+            var command = GetCommand(m => m.SetupExecuteNonQuery().Returns(1), options);
+            command.ExecuteNonQuery();
+
+            VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteNonQuery), activity => activity.Tags.Should().Contain(tag => tag.Key == "db.statement" && tag.Value == "MyCommandText"));
         }
 
         [Fact]
         public void ShouldCallConfigureActivity()
         {
             var options = new InstrumentationOptions().ConfigureActivity(a => a.DisplayName = "MyDisplayName");
-            options.User = "test";
-            using (var connection = GetConnection(options))
-            {
-                connection.Execute("CREATE TABLE TestTable (Id int null)");
-            }
-            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteNonQuery)}");
-            commandActivity.DisplayName.Should().Be("MyDisplayName");
+            var command = GetCommand(m => m.SetupExecuteNonQuery().Returns(1), options);
+            command.ExecuteNonQuery();
+            VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteNonQuery), activity => activity.DisplayName.Should().Be("MyDisplayName"));
         }
 
         [Fact]
         public void ShouldSetUserTag()
         {
-            var options = new InstrumentationOptions();
-            options.User = "TestUser";
-            using (var connection = GetConnection(options))
+            var options = new InstrumentationOptions
             {
-                connection.Execute("CREATE TABLE TestTable (Id int null)");
-            }
-            var commandActivity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{nameof(InstrumentedDbCommand.ExecuteNonQuery)}");
-            commandActivity.Tags.Should().Contain(tag => tag.Key == "db.user" && tag.Value == "TestUser");
+                User = "TestUser"
+            };
+            var command = GetCommand(m => m.SetupExecuteNonQuery().Returns(1), options);
+            command.ExecuteNonQuery();
+            VerifyActivity(nameof(InstrumentedDbConnection), activity => activity.Tags.Should().Contain(tag => tag.Key == "db.user" && tag.Value == "TestUser"));
         }
 
 
@@ -487,17 +419,14 @@ namespace DbActivities.Tests
         public void ShouldConfigureCommandActivity()
         {
             var options = new InstrumentationOptions();
-            bool wasConfigured = false;
-            options.ConfigureCommandActivity<SQLiteCommand>((activity, command) =>
+            var wasConfigured = false;
+            options.ConfigureCommandActivity<DbCommand>((activity, command) =>
             {
                 wasConfigured = true;
-                command.Should().BeOfType<SQLiteCommand>();
             });
 
-            using (var connection = GetConnection(options))
-            {
-                connection.Execute("CREATE TABLE TestTable (Id int null)");
-            }
+            var command = GetCommand(m => m.SetupExecuteNonQuery().Returns(1), options);
+            command.ExecuteNonQuery();
 
             wasConfigured.Should().BeTrue();
         }
@@ -507,17 +436,13 @@ namespace DbActivities.Tests
         {
             var options = new InstrumentationOptions();
             bool wasConfigured = false;
-            options.ConfigureDataReaderActivity<SQLiteDataReader>((activity, command) =>
+            options.ConfigureDataReaderActivity<DbDataReader>((activity, command) =>
             {
                 wasConfigured = true;
-                command.Should().BeOfType<SQLiteDataReader>();
             });
 
-            using (var connection = GetConnection(options))
-            {
-                connection.Execute("CREATE TABLE TestTable (Id int null)");
-                connection.Read<TestRecord>(Sql.GetCount);
-            }
+            var command = GetCommand(options: options);
+            command.ExecuteReader().ReadToEnd();
 
             wasConfigured.Should().BeTrue();
         }
@@ -527,16 +452,30 @@ namespace DbActivities.Tests
         {
             var options = new InstrumentationOptions();
             bool wasConfigured = false;
-            options.ConfigureConnectionActivity<SQLiteConnection>((activity, connection) =>
+            options.ConfigureConnectionActivity<DbConnection>((activity, connection) =>
             {
                 wasConfigured = true;
-                connection.Should().BeOfType<SQLiteConnection>();
             });
 
-            using (var connection = GetConnection(options))
+            using (var connection = GetConnection(options: options))
             {
-                connection.Execute("CREATE TABLE TestTable (Id int null)");
-                connection.Read<TestRecord>(Sql.GetCount);
+            }
+
+            wasConfigured.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task ShouldConfigureConnectionActivityAsync()
+        {
+            var options = new InstrumentationOptions();
+            bool wasConfigured = false;
+            options.ConfigureConnectionActivity<DbConnection>((activity, connection) =>
+            {
+                wasConfigured = true;
+            });
+
+            await using (var connection = GetConnection(options: options))
+            {
             }
 
             wasConfigured.Should().BeTrue();
@@ -547,17 +486,36 @@ namespace DbActivities.Tests
         {
             var options = new InstrumentationOptions();
             bool wasConfigured = false;
-            options.ConfigureTransactionActivity<SQLiteTransaction>((activity, connection) =>
+            options.ConfigureTransactionActivity<DbTransaction>((activity, transaction) =>
             {
                 wasConfigured = true;
-                connection.Should().BeOfType<SQLiteTransaction>();
             });
 
-            using (var connection = GetConnection(options))
+            using (var connection = GetConnection(options: options))
             {
-                using var transaction = connection.BeginTransaction();
-                connection.Execute("CREATE TABLE TestTable (Id int null)");
-                connection.Read<TestRecord>(Sql.GetCount);
+                using (var transaction = connection.BeginTransaction())
+                {
+
+                }
+            }
+
+            wasConfigured.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task ShouldConfigureTransactionActivityAsync()
+        {
+            var options = new InstrumentationOptions();
+            bool wasConfigured = false;
+            options.ConfigureTransactionActivity<DbTransaction>((activity, transaction) =>
+            {
+                wasConfigured = true;
+            });
+            var connection = GetConnection(options: options);
+
+            using (var transaction = await connection.BeginTransactionAsync())
+            {
+                await transaction.DisposeAsync();
             }
 
             wasConfigured.Should().BeTrue();
@@ -568,16 +526,12 @@ namespace DbActivities.Tests
         {
             bool wasConfigured = false;
             var options = new InstrumentationOptions("sqlite");
-            options.ConfigureDbCommand<SQLiteCommand>(command =>
+            options.ConfigureDbCommand<DbCommand>(command =>
             {
                 wasConfigured = true;
             });
 
-            using (var connection = GetConnection(options))
-            {
-                connection.Execute(Sql.CreateTestTable);
-            }
-
+            GetConnection(options: options).CreateCommand().ExecuteReader().ReadToEnd();
             wasConfigured.Should().BeTrue();
         }
 
@@ -586,32 +540,86 @@ namespace DbActivities.Tests
         {
             var options = new InstrumentationOptions("sqlite");
             options.ConfigureCommandFactory((command, connection, options) => new CustomInstrumentedDbCommand(command, connection, options));
-            using (var connection = GetConnection(options))
+            using (var connection = GetConnection(options: options))
             {
                 connection.CreateCommand().Should().BeOfType<CustomInstrumentedDbCommand>();
             }
         }
 
-
-        private DbConnection GetConnection(InstrumentationOptions options = null)
+        private static DbConnection GetConnection(Action<Mock<DbCommand>> configureCommandMock = null, InstrumentationOptions options = null)
         {
-            var connection = new SQLiteConnection("Data Source= :memory:; Cache = Shared");
-            connection.Open();
-            return new InstrumentedDbConnection(connection, options ?? new InstrumentationOptions("sqlite"));
+            configureCommandMock ??= (mock) => { };
+            options ??= new InstrumentationOptions("sqlite");
+            var connectionMock = new Mock<DbConnection>();
+            var commandMock = new Mock<DbCommand>();
+
+            var dataReaderMock = new Mock<DbDataReader>();
+            dataReaderMock.SetupSequence(r => r.Read()).Returns(true).Returns(true).Returns(true).Returns(false);
+            dataReaderMock.SetupSequence(r => r.ReadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true).ReturnsAsync(true).ReturnsAsync(true).ReturnsAsync(false);
+
+            var transactionMock = new Mock<DbTransaction>();
+            connectionMock.Protected().Setup<DbTransaction>("BeginDbTransaction", ItExpr.IsAny<IsolationLevel>()).Returns(transactionMock.Object);
+            connectionMock.Protected().Setup<ValueTask<DbTransaction>>("BeginDbTransactionAsync", ItExpr.IsAny<IsolationLevel>(), It.IsAny<CancellationToken>()).Returns(ValueTask.FromResult(transactionMock.Object));
+            connectionMock.SetupProperty(c => c.ConnectionString, "SomeConnectionString");
+
+            //connectionMock.Protected().Setup<DbTransaction>("BeginDbTransaction").Returns(transactionMock.Object);
+
+            commandMock.SetupGet(c => c.CommandText).Returns("SampleCommandText");
+
+            connectionMock.Protected().Setup<DbCommand>("CreateDbCommand").Returns(commandMock.Object);
+
+
+
+            commandMock.Protected().Setup<DbDataReader>("ExecuteDbDataReader", It.IsAny<CommandBehavior>()).Returns(dataReaderMock.Object);
+            commandMock.Protected().Setup<Task<DbDataReader>>("ExecuteDbDataReaderAsync", It.IsAny<CommandBehavior>(), It.IsAny<CancellationToken>()).Returns(Task.FromResult(dataReaderMock.Object));
+            var connection = new InstrumentedDbConnection(connectionMock.Object, options);
+            configureCommandMock(commandMock);
+            return connection;
         }
 
+        private static DbCommand GetCommand(Action<Mock<DbCommand>> configureCommandMock = null, InstrumentationOptions options = null)
+        {
+            return GetConnection(configureCommandMock, options).CreateCommand();
+        }
 
-    }
+        private void VerifyActivity(string name, Action<Activity> verify)
+        {
+            var activity = _startedActivities.GetActivity(name);
+            verify(activity);
+        }
 
-    public record TestRecord(int Id);
+        private void VerifyCommandActivity(string name, Action<Activity> verify)
+        {
+            var activity = _startedActivities.GetActivity($"{nameof(InstrumentedDbCommand)}.{name}");
+            verify(activity);
+        }
 
+        private void VerifyReaderActivity(Action<Activity> verify)
+        {
+            var activity = _startedActivities.GetActivity(nameof(InstrumentedDbDataReader));
+            verify(activity);
+        }
 
-    public static class Sql
-    {
-        public static string CreateTestTable { get => "CREATE TABLE TestTable (Id int null)"; }
+        private Activity GetConnectionActivity()
+        {
+            return _startedActivities.GetActivity(nameof(InstrumentedDbConnection));
+        }
 
-        public static string Rubbish { get => "Rubbish"; }
+        private void VerifyTransactionEvent(string eventName)
+        {
+            var transactionActivity = _startedActivities.GetActivity(nameof(InstrumentedDbTransaction));
+            transactionActivity.Events.Should().Contain(e => e.Name == eventName);
+        }
 
-        public static string GetCount { get => "SELECT COUNT(*) FROM TestTable"; }
+        private void VerifyNoActivities()
+        {
+            _startedActivities.Should().BeEmpty();
+        }
+
+        private Activity GetTransactionActivity()
+        {
+            return _startedActivities.GetActivity(nameof(InstrumentedDbTransaction));
+        }
+
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Reflection;
 
 namespace DbActivities
@@ -23,7 +24,7 @@ namespace DbActivities
 
         private readonly List<Action<Activity, DbTransaction>> _configureTransactionActions = new();
 
-        private Func<DbCommand, string> _formatCommantText;
+        private Func<DbCommand, string> _formatCommandText;
 
         internal Func<DbCommand, DbConnection, InstrumentationOptions, InstrumentedDbCommand> CommandFactory;
 
@@ -35,7 +36,7 @@ namespace DbActivities
         {
             ActivitySource = Assembly.GetCallingAssembly().CreateActivitySource();
             _activityStarter = (source, name) => source.StartActivity(name, ActivityKind.Client);
-            _formatCommantText = (c) => c.CommandText;
+            _formatCommandText = (c) => c.CommandText;
             System = system;
             CommandFactory = (command, connection, options) => new InstrumentedDbCommand(command, connection, options);
         }
@@ -45,12 +46,22 @@ namespace DbActivities
         /// </summary>
         public ActivitySource ActivitySource { get; set; }
 
+        /// <summary>
+        /// Gets or sets the <see cref="Meter"/> that is used to create new <see cref="Instrument{T}"/> instances.
+        /// </summary>
+        public static Meter Meter { get; set; } = Assembly.GetCallingAssembly().CreateMeter();
+
         private Func<ActivitySource, string, Activity?> _activityStarter;
 
         /// <summary>
         /// Gets the system according to being reported as "db.system".
         /// </summary>
         public string System { get; }
+
+        /// <summary>
+        /// Gets the system according to being reported as "db.name".
+        /// </summary>
+        public string DbName { get; }
 
         /// <summary>
         /// Gets or sets the user to be reported as "db.user".
@@ -114,7 +125,7 @@ namespace DbActivities
 
         internal string FormatCommandTextInternal(DbCommand dbCommand)
         {
-            return _formatCommantText(dbCommand);
+            return _formatCommandText(dbCommand);
         }
 
         internal Activity StartActivity(string name)
@@ -131,7 +142,7 @@ namespace DbActivities
         /// <returns>This <see cref="InstrumentationOptions"/> for chaining method calls.</returns>
         public InstrumentationOptions FormatCommandText<TCommand>(Func<TCommand, string> format) where TCommand : DbCommand
         {
-            _formatCommantText = c => format((TCommand)c);
+            _formatCommandText = c => format((TCommand)c);
             return this;
         }
 
@@ -168,6 +179,12 @@ namespace DbActivities
             return this;
         }
 
+        /// <summary>
+        /// Allows configuration of the <see cref="Activity"/> just the transaction is completed.
+        /// </summary>
+        /// <typeparam name="TTransaction">The type of the inner <see cref="DbTransaction"/> being instrumented.</typeparam>
+        /// <param name="configureDataReaderActivity">An action used to configure the <see cref="Activity"/>.</param>
+        /// <returns>This <see cref="InstrumentationOptions"/> for chaining method calls.</returns>
         public InstrumentationOptions ConfigureTransactionActivity<TTransaction>(Action<Activity, TTransaction> configureDataReaderActivity) where TTransaction : DbTransaction
         {
             Action<Activity, DbTransaction> configureAction = (activity, transaction) => configureDataReaderActivity(activity, (TTransaction)transaction);
@@ -175,6 +192,11 @@ namespace DbActivities
             return this;
         }
 
+        /// <summary>
+        /// Allows configuration of the <see cref="Activity"/> just before the activity is dis
+        /// </summary>
+        /// <param name="configureActivity">The action used to configure the <see cref="Activity"/>.</param>
+        /// <returns>This <see cref="InstrumentationOptions"/> for chaining method calls.</returns>
         public InstrumentationOptions ConfigureActivity(Action<Activity> configureActivity)
         {
             _activityActions.Add(configureActivity);

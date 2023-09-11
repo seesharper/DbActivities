@@ -75,5 +75,9 @@
                 "isDefault": true
             }
         },
+        {
+            "label": "Open Code Coverage Report",
+            "command": "${open-in-browser.}",
+        }
     ]
 }

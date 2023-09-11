@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Reflection;
 
@@ -11,6 +12,9 @@ namespace DbActivities
             => assembly.GetCustomAttributes<AssemblyInformationalVersionAttribute>().Single().InformationalVersion;
 
         public static ActivitySource CreateActivitySource(this Assembly assembly)
+            => new(assembly.GetName().GetAssemblySimpleName(), assembly.GetInformationalVersion());
+
+        public static Meter CreateMeter(this Assembly assembly)
             => new(assembly.GetName().GetAssemblySimpleName(), assembly.GetInformationalVersion());
 
         public static string GetAssemblySimpleName(this AssemblyName assemblyName)
