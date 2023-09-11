@@ -44,7 +44,7 @@ namespace DbActivities.Tests
         }
 
         [Fact]
-        public async Task ShouldPopulateConnectionLevelTags()
+        public void ShouldPopulateConnectionLevelTags()
         {
             using (var connection = GetConnection())
             {

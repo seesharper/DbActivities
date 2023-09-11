@@ -13,6 +13,12 @@ namespace DbActivities
         private readonly InstrumentedDbConnection _dbConnection;
         private readonly InstrumentationOptions _options;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="InstrumentedDbTransaction"/> class.
+        /// </summary>
+        /// <param name="dbTransaction">The <see cref="DbTransaction"/> being instrumented.</param>
+        /// <param name="dbConnection">The <see cref="InstrumentedDbConnection"/> associated with this transaction.</param>
+        /// <param name="options">The <see cref="InstrumentationOptions"/> to be used when instrumenting.</param>
         public InstrumentedDbTransaction(DbTransaction dbTransaction, InstrumentedDbConnection dbConnection, InstrumentationOptions options)
         {
             _innerDbTransaction = dbTransaction;
@@ -20,11 +26,13 @@ namespace DbActivities
             _dbConnection = dbConnection;
             _options = options;
         }
-
+        /// <inheritdoc/>
         protected override DbConnection DbConnection => _dbConnection;
 
+        /// <inheritdoc/>
         public override IsolationLevel IsolationLevel => _innerDbTransaction.IsolationLevel;
 
+        /// <inheritdoc/>
         public DbTransaction InnerDbTransaction { get => _innerDbTransaction; }
 
         /// <inheritdoc/>
@@ -34,6 +42,7 @@ namespace DbActivities
             _transactionActivity?.AddEvent(new ActivityEvent(nameof(Commit)));
         }
 
+        /// <inheritdoc/>
         public override async Task CommitAsync(CancellationToken cancellationToken = default)
         {
             await _innerDbTransaction.CommitAsync(cancellationToken);
@@ -54,6 +63,7 @@ namespace DbActivities
             _transactionActivity?.AddEvent(new ActivityEvent(nameof(RollbackAsync)));
         }
 
+        /// <inheritdoc/>
         protected override void Dispose(bool isDisposing)
         {
             if (isDisposing)
@@ -66,16 +76,14 @@ namespace DbActivities
             base.Dispose(isDisposing);
         }
 
+        /// <inheritdoc/>
         public override async ValueTask DisposeAsync()
         {
             _options.ConfigureActivityInternal(_transactionActivity);
             _options.ConfigureTransactionActivityInternal(_transactionActivity, _innerDbTransaction);
             await _innerDbTransaction.DisposeAsync();
             _transactionActivity?.Dispose();
-
             await base.DisposeAsync();
         }
-
-
     }
 }

@@ -35,7 +35,6 @@ namespace DbActivities
         public InstrumentationOptions(string system = "other_sql")
         {
             ActivitySource = Assembly.GetCallingAssembly().CreateActivitySource();
-            Meter = Assembly.GetCallingAssembly().CreateMeter();
             _activityStarter = (source, name) => source.StartActivity(name, ActivityKind.Client);
             _formatCommandText = (c) => c.CommandText;
             System = system;
@@ -50,7 +49,7 @@ namespace DbActivities
         /// <summary>
         /// Gets or sets the <see cref="Meter"/> that is used to create new <see cref="Instrument{T}"/> instances.
         /// </summary>
-        public static Meter Meter { get; set; }
+        public static Meter Meter { get; set; } = Assembly.GetCallingAssembly().CreateMeter();
 
         private Func<ActivitySource, string, Activity?> _activityStarter;
 
@@ -175,6 +174,12 @@ namespace DbActivities
             return this;
         }
 
+        /// <summary>
+        /// Allows configuration of the <see cref="Activity"/> just the transaction is completed.
+        /// </summary>
+        /// <typeparam name="TTransaction">The type of the inner <see cref="DbTransaction"/> being instrumented.</typeparam>
+        /// <param name="configureDataReaderActivity">An action used to configure the <see cref="Activity"/>.</param>
+        /// <returns>This <see cref="InstrumentationOptions"/> for chaining method calls.</returns>
         public InstrumentationOptions ConfigureTransactionActivity<TTransaction>(Action<Activity, TTransaction> configureDataReaderActivity) where TTransaction : DbTransaction
         {
             Action<Activity, DbTransaction> configureAction = (activity, transaction) => configureDataReaderActivity(activity, (TTransaction)transaction);
@@ -182,6 +187,11 @@ namespace DbActivities
             return this;
         }
 
+        /// <summary>
+        /// Allows configuration of the <see cref="Activity"/> just before the activity is dis
+        /// </summary>
+        /// <param name="configureActivity">The action used to configure the <see cref="Activity"/>.</param>
+        /// <returns>This <see cref="InstrumentationOptions"/> for chaining method calls.</returns>
         public InstrumentationOptions ConfigureActivity(Action<Activity> configureActivity)
         {
             _activityActions.Add(configureActivity);

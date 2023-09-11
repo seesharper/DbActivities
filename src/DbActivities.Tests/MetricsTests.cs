@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Diagnostics.Metrics;
+using FluentAssertions;
 using Moq;
 using Xunit;
 
@@ -11,6 +12,8 @@ namespace DbActivities.Tests;
 public class MetricsTests
 {
     private readonly MeterListener _meterListener;
+    private List<int> _measurements = new List<int>();
+
 
     public MetricsTests()
     {
@@ -21,7 +24,7 @@ public class MetricsTests
         };
         _meterListener.SetMeasurementEventCallback<int>((Instrument instrument, int measurement, ReadOnlySpan<KeyValuePair<string, object>> tags, object state) =>
         {
-            Console.WriteLine(measurement);
+            _measurements.Add(measurement);
         });
 
 
@@ -37,6 +40,7 @@ public class MetricsTests
         var options = new InstrumentationOptions();
         var instrumentedDbConnection = new InstrumentedDbConnection(mock.Object, options);
         instrumentedDbConnection.Dispose();
-        var instrumentedDbConnection2 = new InstrumentedDbConnection(mock.Object, options);
+        _measurements.Should().Contain(1);
+        _measurements.Should().Contain(-1);
     }
 }
