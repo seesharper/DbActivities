@@ -59,6 +59,11 @@ namespace DbActivities
         public string System { get; }
 
         /// <summary>
+        /// Gets the system according to being reported as "db.name".
+        /// </summary>
+        public string DbName { get; }
+
+        /// <summary>
         /// Gets or sets the user to be reported as "db.user".
         /// </summary>
         public string User { get; set; }

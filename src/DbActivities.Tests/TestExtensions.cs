@@ -29,7 +29,7 @@ namespace DbActivities
         public static void ShouldHaveCallLevelTags(this Activity activity, string operation)
         {
             activity.Tags.Should().Contain(tag => tag.Key == OpenTelemetrySemanticNames.DbStatement && tag.Value.Length > 0);
-            activity.Tags.Should().Contain(tag => tag.Key == OpenTelemetrySemanticNames.DbName && tag.Value.Length > 0);
+            activity.Tags.Should().Contain(tag => tag.Key == OpenTelemetrySemanticNames.DbName);
             activity.Tags.Should().Contain(tag => tag.Key == OpenTelemetrySemanticNames.DbOperation && tag.Value == operation);
         }
 

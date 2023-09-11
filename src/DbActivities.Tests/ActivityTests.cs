@@ -411,7 +411,7 @@ namespace DbActivities.Tests
             };
             var command = GetCommand(m => m.SetupExecuteNonQuery().Returns(1), options);
             command.ExecuteNonQuery();
-            VerifyCommandActivity(nameof(InstrumentedDbCommand.ExecuteNonQuery), activity => activity.Tags.Should().Contain(tag => tag.Key == "db.user" && tag.Value == "TestUser"));
+            VerifyActivity(nameof(InstrumentedDbConnection), activity => activity.Tags.Should().Contain(tag => tag.Key == "db.user" && tag.Value == "TestUser"));
         }
 
 
