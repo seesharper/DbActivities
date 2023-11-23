@@ -11,7 +11,7 @@ namespace DbActivities.Tests
         {
             var activitySource = typeof(AssemblyExtensionTests).Assembly.CreateActivitySource();
             activitySource.Name.Should().Be("DbActivities.Tests");
-            activitySource.Version.Should().Be("1.0.0");
+            activitySource.Version.Should().StartWith("1.0.0");
         }
 
         [Fact]

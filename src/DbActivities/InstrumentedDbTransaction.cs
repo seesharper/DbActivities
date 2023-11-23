@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,6 +13,9 @@ namespace DbActivities
         private readonly Activity _transactionActivity;
         private readonly InstrumentedDbConnection _dbConnection;
         private readonly InstrumentationOptions _options;
+        private static readonly Histogram<long> s_transactionDuration = InstrumentationOptions.Meter.CreateHistogram<long>("db.client.transactions.use_time", "ms");
+
+        private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="InstrumentedDbTransaction"/> class.
@@ -59,7 +63,7 @@ namespace DbActivities
         /// <inheritdoc/>
         public override async Task RollbackAsync(CancellationToken cancellationToken = default)
         {
-            await base.RollbackAsync(cancellationToken);
+            await _innerDbTransaction.RollbackAsync(cancellationToken);
             _transactionActivity?.AddEvent(new ActivityEvent(nameof(RollbackAsync)));
         }
 
@@ -72,6 +76,8 @@ namespace DbActivities
                 _options.ConfigureTransactionActivityInternal(_transactionActivity, _innerDbTransaction);
                 _innerDbTransaction.Dispose();
                 _transactionActivity?.Dispose();
+                s_transactionDuration.Record(_stopwatch.ElapsedMilliseconds);
+
             }
             base.Dispose(isDisposing);
         }
@@ -83,6 +89,7 @@ namespace DbActivities
             _options.ConfigureTransactionActivityInternal(_transactionActivity, _innerDbTransaction);
             await _innerDbTransaction.DisposeAsync();
             _transactionActivity?.Dispose();
+            s_transactionDuration.Record(_stopwatch.ElapsedMilliseconds);
             await base.DisposeAsync();
         }
     }

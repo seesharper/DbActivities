@@ -2,6 +2,7 @@
 using System.Data.Common;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -22,6 +23,10 @@ namespace DbActivities
         private readonly InstrumentationOptions _options;
 
         private static readonly UpDownCounter<int> s_openConnections = InstrumentationOptions.Meter.CreateUpDownCounter<int>("db.connections.open");
+
+        private static readonly Histogram<long> s_connectionDuration = InstrumentationOptions.Meter.CreateHistogram<long>("db.client.connections.use_time", "ms");
+
+        private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="InstrumentedDbConnection"/> class.
@@ -152,6 +157,7 @@ namespace DbActivities
                 InnerDbConnection.StateChange -= StateChangeHandler;
                 _innerDbConnection.Dispose();
                 s_openConnections.Add(-1);
+                s_connectionDuration.Record(_stopwatch.ElapsedMilliseconds);
             }
 
             base.Dispose(disposing);
@@ -174,6 +180,7 @@ namespace DbActivities
             InnerDbConnection.StateChange -= StateChangeHandler;
             await _innerDbConnection.DisposeAsync();
             s_openConnections.Add(-1);
+            s_connectionDuration.Record(_stopwatch.ElapsedMilliseconds);
         }
 
         private void StateChangeHandler(object sender, StateChangeEventArgs stateChangeEventArguments)
